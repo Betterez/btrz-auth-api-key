@@ -11,7 +11,10 @@ describe("Express integration", function () {
 
   before(function () {
     let options = {
-      "collection": "apikeys",
+      "collection": {
+        "name": "apikeys",
+        "property": "key"
+      },
       "db": {
               "options": {
                 "database": "betterez_core",

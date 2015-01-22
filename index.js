@@ -21,7 +21,9 @@ module.exports = function (options) {
 
 
   function findByApiKeyGen(apikey) {
-    return db.collection(options.collection).findOne({"key": apikey});
+    let query = {};
+    query[options.collection.property] =  apikey;
+    return db.collection(options.collection.name).findOne(query);
   }
 
   passport.use(new LocalStrategy({apiKeyHeader: "x-api-key"},
