@@ -2,6 +2,11 @@
 
 This module handles api authentication using x-api-key on the Betterez platform.
 
+## Runtimes supported
+
+io.js >= 1.0.3
+node v0.11.x with the --harmony flag
+
 ### Yeoman
 
 If you are using the Yeoman generator for `btrz-api-services` this package will be included and configured by default.
