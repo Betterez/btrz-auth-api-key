@@ -2,6 +2,8 @@
 
 module.exports = function (options) {
 
+  let ignoredRoutes = (options.ignoredRoutes && Array.isArray(options.ignoredRoutes)) ? options.ignoredRoutes : [];
+
   // username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]][/[database][?options]]
   function connectionString(dbConfig) {
     let hostPortPairs = dbConfig.uris.map(function (uri) {
@@ -19,11 +21,24 @@ module.exports = function (options) {
   pmongo = require("promised-mongo"),
   db = pmongo(connectionString(options.db));
 
-
   function findByApiKeyGen(apikey) {
     let query = {};
     query[options.collection.property] =  apikey;
     return db.collection(options.collection.name).findOne(query);
+  }
+
+  function shouldIgnoreRoute(originalUrl) {
+    return ignoredRoutes.some(function (regExp) {
+      return originalUrl.match(regExp) || null;
+    });
+  }
+
+  function innerAuthenticateMiddleware(req, res, next) {
+    if (shouldIgnoreRoute(req.originalUrl) > 0) {
+      next();
+    } else {
+      passport.authenticate("localapikey", {session: false})(req, res, next);
+    }
   }
 
   passport.use(new LocalStrategy({apiKeyHeader: "x-api-key"},
@@ -39,7 +54,7 @@ module.exports = function (options) {
       return passport.initialize();
     },
     authenticate: function () {
-      return passport.authenticate("localapikey", {session: false});
+      return innerAuthenticateMiddleware;
     }
   };
 };

@@ -11,7 +11,7 @@ node v0.11.x with the --harmony flag
 
 If you are using the Yeoman generator for `btrz-api-services` this package will be included and configured by default.
 
-### Manual configuration
+### Manual installation and configuration
 
 When creating a new API service you should include this module.
 
@@ -46,6 +46,7 @@ On your index.js file when creating your application service, hook this package 
 
 The options object should have the following structure.
 
+    ignoredRoutes: ["/api-docs"],
     collection: {
         name: "collection_name",
         property: "property_name"
@@ -61,4 +62,17 @@ The options object should have the following structure.
         ]
     }
 
-The `collection.name` and `collection.property` will be used to try to find one record that contains the value provided on X-API-KEY to the service. 
+#### ignoredRoutes
+
+And array of strings containing a regular expression to match part of the whole or route. Use this to expose an end point or group of end points to the world without the need of an X-API-KEY. Try to make your regexp as restrictive as possible to avoid exposing end points by mistake.
+
+Ex: 
+
+    ^/api-docs //will match /api-docs, /api-docs/pets, etc.
+    ^/api-docs$ //will match /api-docs and will not match /api-docs
+
+#### db
+
+The db options and uris array will be used to connect to the MongoDb (single server or cluster) to check for the apikey.
+
+The `collection.name` and `collection.property` will be used to try to find one record that contains the value provided on X-API-KEY to the service.

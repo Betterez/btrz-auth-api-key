@@ -21,6 +21,7 @@ describe("Express integration", function () {
 
   before(function (done) {
     let options = {
+      "ignoredRoutes": ["^/api-docs"],
       "collection": {
         "name": "apikeys",
         "property": "key"
@@ -40,6 +41,12 @@ describe("Express integration", function () {
     app = express();
     app.use(auth.initialize());
     app.use(auth.authenticate());
+    app.get("/api-docs", function (req, res) {
+      res.status(200).json({docs: "documents"});
+    });
+    app.get("/api-docs/pets", function (req, res) {
+      res.status(200).json({docs: "documents"});
+    });
     app.get("/hello-world", function (req, res) {
       res.status(200).json({message: "Hello cruel world!"});
     });
@@ -52,6 +59,32 @@ describe("Express integration", function () {
 
   after(function (done) {
     fixtureLoader().clear(done);
+  });
+
+  it("should return 200 ok if no X-API-KEY is present but route should not be secured", function (done) {
+    request(app)
+      .get("/api-docs")
+      .set("Accept", "application/json")
+      .expect(200)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
+  it("should return 200 ok if no X-API-KEY is present but route should not be secured", function (done) {
+    request(app)
+      .get("/api-docs/pets")
+      .set("Accept", "application/json")
+      .expect(200)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
   });
 
   it("should return 401 unauthorized if no X-API-KEY header is present", function (done) {
