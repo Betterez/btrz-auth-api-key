@@ -46,6 +46,7 @@ On your index.js file when creating your application service, hook this package 
 
 The options object should have the following structure.
 
+    testKey: "a-key-to-use-during-testing",
     ignoredRoutes: ["/api-docs"],
     collection: {
         name: "collection_name",
@@ -61,6 +62,10 @@ The options object should have the following structure.
             "address:port"
         ]
     }
+
+#### testKey
+
+This is a key that can be set to use when Unit Testing your services. Using this key avoids the need to setup a key on a test db. 
 
 #### ignoredRoutes
 

@@ -16,15 +16,28 @@ module.exports = function (options) {
   }
 
   let _ = require("lodash"),
-  passport = require("passport"),
-  LocalStrategy = require("passport-localapikey-update").Strategy,
-  pmongo = require("promised-mongo"),
-  db = pmongo(connectionString(options.db));
+    passport = require("passport"),
+    LocalStrategy = require("passport-localapikey-update").Strategy,
+    pmongo = require("promised-mongo"),
+    db = pmongo(connectionString(options.db));
 
-  function findByApiKeyGen(apikey) {
+  function useTestKey(apikey) {
+    if (apikey === options.testKey) {
+      return new Promise(function (resolve) {
+        resolve(true);
+      });
+    }
+    return null;
+  }
+
+  function useDb(apikey) {
     let query = {};
     query[options.collection.property] =  apikey;
     return db.collection(options.collection.name).findOne(query);
+  }
+
+  function findByApiKey(apikey) {
+    return useTestKey(apikey) || useDb(apikey);
   }
 
   function shouldIgnoreRoute(originalUrl) {
@@ -45,7 +58,10 @@ module.exports = function (options) {
     function (apikey, done) {
       let onSuccess = _.partial(done, null),
         onErr = _.partialRight(done, null);
-      findByApiKeyGen(apikey).then(onSuccess, onErr).done();
+      let result = findByApiKey(apikey).then(onSuccess, onErr);
+      if (result.done) {
+        result.done();
+      }
     }
   ));
 

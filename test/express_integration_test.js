@@ -17,10 +17,11 @@ describe("Express integration", function () {
    chance = new Chance(),
    express = require("express"),
    Authenticator = require("../"),
-   app, validKey;
+   app, validKey, testKey = "test-api-key";
 
   before(function (done) {
     let options = {
+      "testKey": testKey,
       "ignoredRoutes": ["^/api-docs"],
       "collection": {
         "name": "apikeys",
@@ -118,6 +119,21 @@ describe("Express integration", function () {
     request(app)
       .get("/hello-world")
       .set("X-API-KEY", validKey)
+      .set("Accept", "application/json")
+      .expect(200)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
+
+  it("should authenticate the user if X-API-KEY is the test-key", function (done) {
+    request(app)
+      .get("/hello-world")
+      .set("X-API-KEY", testKey)
       .set("Accept", "application/json")
       .expect(200)
       .end(function (err) {
