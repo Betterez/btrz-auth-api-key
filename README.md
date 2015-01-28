@@ -95,7 +95,7 @@ And array of strings containing a regular expression to match part of the whole 
 Ex: 
 
     ^/api-docs //will match /api-docs, /api-docs/pets, etc.
-    ^/api-docs$ //will match /api-docs and will not match /api-docs
+    ^/api-docs$ //will match /api-docs and will not match /api-docs/
 
 #### db
 
