@@ -24,7 +24,11 @@ module.exports = function (options) {
   function useTestKey(apikey) {
     if (apikey === options.testKey) {
       return new Promise(function (resolve) {
-        resolve(true);
+        if (options.testUser) {
+          resolve(options.testUser);
+        } else {
+          resolve(true);
+        }
       });
     }
     return null;
@@ -66,8 +70,8 @@ module.exports = function (options) {
   ));
 
   return {
-    initialize: function () {
-      return passport.initialize();
+    initialize: function (passportInitOptions) {
+      return passport.initialize(passportInitOptions);
     },
     authenticate: function () {
       return innerAuthenticateMiddleware;

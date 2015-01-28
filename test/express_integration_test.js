@@ -17,11 +17,13 @@ describe("Express integration", function () {
    chance = new Chance(),
    express = require("express"),
    Authenticator = require("../"),
-   app, validKey, testKey = "test-api-key";
+   app, validKey, testKey = "test-api-key",
+   testUser = {_id: chance.hash(), name: "Test", last: "User"};
 
   before(function (done) {
     let options = {
       "testKey": testKey,
+      "testUser": testUser,
       "ignoredRoutes": ["^/api-docs"],
       "collection": {
         "name": "apikeys",
@@ -40,7 +42,7 @@ describe("Express integration", function () {
           };
     let auth = new Authenticator(options);
     app = express();
-    app.use(auth.initialize());
+    app.use(auth.initialize({userProperty: "account"}));
     app.use(auth.authenticate());
     app.get("/api-docs", function (req, res) {
       res.status(200).json({docs: "documents"});
@@ -49,7 +51,7 @@ describe("Express integration", function () {
       res.status(200).json({docs: "documents"});
     });
     app.get("/hello-world", function (req, res) {
-      res.status(200).json({message: "Hello cruel world!"});
+      res.status(200).json(req.account);
     });
     validKey = chance.hash();
     fixtureLoader()
@@ -129,13 +131,42 @@ describe("Express integration", function () {
       });
   });
 
-
-  it("should authenticate the user if X-API-KEY is the test-key", function (done) {
+  it("should authenticate the user if X-API-KEY is the testKey", function (done) {
     request(app)
       .get("/hello-world")
       .set("X-API-KEY", testKey)
       .set("Accept", "application/json")
       .expect(200)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
+  it("should add the testUser into the request X-API-KEY is the testKey", function (done) {
+    request(app)
+      .get("/hello-world")
+      .set("X-API-KEY", testKey)
+      .set("Accept", "application/json")
+      .expect(200)
+      .expect(testUser)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
+  it("should read the user from a custom key on request", function (done) {
+    request(app)
+      .get("/hello-world")
+      .set("X-API-KEY", testKey)
+      .set("Accept", "application/json")
+      .expect(200)
+      .expect(testUser)
       .end(function (err) {
         if (err) {
           return done(err);

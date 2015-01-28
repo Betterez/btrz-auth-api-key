@@ -43,11 +43,26 @@ On your index.js file when creating your application service, hook this package 
     app.use(auth.initialize());
     app.use(auth.authenticate());
 
+#### auth.initialize()
+
+This method is the same as calling `passport.initialize()` if you pass an `options` object it will be used internally when calling `passport.initialize()`.
+
+For example if you want to rename the user property of the request object (where passport will store the authenticated user), you would do this:
+
+    auth.initialize({userProperty: "principal"});
+
+After authentication you can just do:
+
+    var loggedUser = req.principal;
+
 #### Options object
 
-The options object should have the following structure.
+The options object for the Authenticator should have the following structure.
+
+_Notice that this is a different options object than the one passed to passport._ 
 
     testKey: "a-key-to-use-during-testing",
+    testUser: {_id: "fake-id"},
     ignoredRoutes: ["/api-docs"],
     collection: {
         name: "collection_name",
@@ -67,6 +82,11 @@ The options object should have the following structure.
 #### testKey
 
 This is a key that can be set to use when Unit Testing your services. Using this key avoids the need to setup a key on a test db. 
+
+#### testUser
+
+This is an object with any schema. If testKey is present and testUser is present it will be returned as the authenticated user in req.user
+Use this for testing.
 
 #### ignoredRoutes
 
