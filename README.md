@@ -1,6 +1,7 @@
 # btrz-auth-api-key
 
-This module handles api authentication using x-api-key on the Betterez platform.
+This module handles api authentication using an x-api-key parameter, it uses passport with the passport-localapikey strategy.
+It will accept the parameter in a Header, querystring or body.
 
 ## Runtimes supported
 

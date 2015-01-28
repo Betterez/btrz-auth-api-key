@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "multi='xunit=test-results/xunit.xml spec=-' node_modules/mocha/bin/_mocha --ui bdd -R mocha-multi -t 5000",
-    "test-w": "node_modules/mocha/bin/mocha -w",
-    "start": "node_modules/forever/bin/forever . -w"
+    "test-w": "node_modules/mocha/bin/mocha -w"
   },
   "repository": {
     "type": "git",
