@@ -4,7 +4,7 @@
   "description": "Betterez api authorization library",
   "main": "index.js",
   "scripts": {
-    "test": "multi='xunit=test-results/xunit.xml spec=-' node_modules/mocha/bin/_mocha --ui bdd -R mocha-multi -t 5000",
+    "test": "multi='xunit=test-results/xunit.xml spec=-' node_modules/istanbul-harmony/lib/cli.js cover node_modules/mocha/bin/_mocha -- --ui bdd -R mocha-multi -t 5000",
     "test-w": "node_modules/mocha/bin/mocha -w"
   },
   "repository": {
@@ -33,7 +33,7 @@
     "chance": "latest",
     "express": "latest",
     "istanbul-harmony": "^0.3.1",
-    "mocha": "2.1.0",
+    "mocha": "latest",
     "mocha-multi": "latest",
     "pow-mongodb-fixtures": "latest",
     "sinon": "latest",
