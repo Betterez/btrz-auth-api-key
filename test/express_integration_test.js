@@ -24,6 +24,9 @@ describe("Express integration", function () {
     let options = {
       "testKey": testKey,
       "testUser": testUser,
+      "authKeyFields" : {
+        request: "apiKey"
+      },
       "ignoredRoutes": ["^/api-docs"],
       "collection": {
         "name": "apikeys",
@@ -117,10 +120,23 @@ describe("Express integration", function () {
       });
   });
 
-  it("should authenticate the user if X-API-KEY is valid", function (done) {
+  it("should authenticate the user if HEADER X-API-KEY is valid", function (done) {
     request(app)
       .get("/hello-world")
       .set("X-API-KEY", validKey)
+      .set("Accept", "application/json")
+      .expect(200)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
+  it("should authenticate the user if QS X-API-KEY is valid", function (done) {
+    request(app)
+      .get(`/hello-world?apiKey=${validKey}`)
       .set("Accept", "application/json")
       .expect(200)
       .end(function (err) {

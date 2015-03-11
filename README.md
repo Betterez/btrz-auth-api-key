@@ -1,26 +1,24 @@
 # btrz-auth-api-key
 
 This module handles api authentication using an x-api-key parameter, it uses passport with the passport-localapikey strategy.
-It will accept the parameter in a Header, querystring or body.
+It will accept the parameter in the Header, QS or BODY.
+The KEY is case sensitive. 
+You can configure the KEY using the authKeyFields options, see below.
 
 ## Runtimes supported
 
 io.js >= 1.0.3
-node v0.11.x with the --harmony flag
+node >= v0.11.x with the --harmony flag
 
-### Yeoman
+### Slush
 
-If you are using the Yeoman generator for `btrz-api-services` this package will be included and configured by default.
+If you are using the Slush generator for `slush-btrz-service` this package will be included and configured by default.
 
 ### Manual installation and configuration
 
 When creating a new API service you should include this module.
 
     npm install btrz-auth-api-key --save
-
-Or if not published on npm yet, add this line on the `package.json`
-
-    "btrz-auth-api-key": "git+ssh://git@github.com:Betterez/btrz-auth-api-key.git#master",
 
 On your index.js file when creating your application service, hook this package into the middleware:
 
@@ -64,6 +62,10 @@ _Notice that this is a different options object than the one passed to passport.
     testKey: "a-key-to-use-during-testing",
     testUser: {_id: "fake-id"},
     ignoredRoutes: ["/api-docs"],
+    authKeyFields: {
+        header: "X-API-KEY",
+        request: "x_api_key"
+    },
     collection: {
         name: "collection_name",
         property: "property_name"
@@ -96,6 +98,12 @@ Ex:
 
     ^/api-docs //will match /api-docs, /api-docs/pets, etc.
     ^/api-docs$ //will match /api-docs and will not match /api-docs/
+
+#### authKeyFields
+
+An object containing the possible keys to look for in the HEADERS or in the request.
+
+The request key will be mapped to a query string or body parameter. If no options is passed the HEADER will default to `X-API-KEY` and the request will default to `x_api_key`
 
 #### db
 
