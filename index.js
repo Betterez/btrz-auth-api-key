@@ -7,12 +7,12 @@ module.exports = function (options) {
   // username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]][/[database][?options]]
   function connectionString(dbConfig) {
     let hostPortPairs = dbConfig.uris.map(function (uri) {
-      return `${uri}/${dbConfig.options.database}`;
+      return `${uri}`;
     }).join(",");
     if (dbConfig.options.username.length > 0) {
-      return `${dbConfig.options.username}:${dbConfig.options.password}@${hostPortPairs}`;
+      return `${dbConfig.options.username}:${dbConfig.options.password}@${hostPortPairs}/${dbConfig.options.database}`;
     }
-    return hostPortPairs;
+    return `${hostPortPairs}/${dbConfig.options.database}`;
   }
 
   let _ = require("lodash"),

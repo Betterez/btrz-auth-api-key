@@ -30,16 +30,16 @@ describe("Express integration", function () {
         "property": "key"
       },
       "db": {
-              "options": {
-                "database": "btrzAuthApiKeyTest",
-                "username": "",
-                "password": ""
-              },
-              "uris": [
-                "127.0.0.1:27017"
-              ]
-            }
-          };
+          "options": {
+            "database": "btrzAuthApiKeyTest",
+            "username": "",
+            "password": ""
+          },
+          "uris": [
+            "127.0.0.1:27017"
+          ]
+        }
+      };
     let auth = new Authenticator(options);
     app = express();
     app.use(auth.initialize({userProperty: "account"}));
