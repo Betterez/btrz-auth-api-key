@@ -33,7 +33,7 @@
     "chance": "latest",
     "express": "latest",
     "istanbul-harmony": "^0.3.1",
-    "mocha": "latest",
+    "mocha": "2.1.0",
     "mocha-multi": "latest",
     "pow-mongodb-fixtures": "latest",
     "sinon": "latest",
