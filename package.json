@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "multi='xunit=test-results/xunit.xml spec=-' node_modules/istanbul-harmony/lib/cli.js cover node_modules/mocha/bin/_mocha -- --ui bdd -R mocha-multi -t 5000",
-    "test-w": "node_modules/mocha/bin/mocha -w"
+    "test-w": "node_modules/mocha/bin/mocha -w",
+    "publish": "publish"
   },
   "repository": {
     "type": "git",
@@ -22,9 +23,6 @@
     "url": "https://github.com/Betterez/btrz-auth-api-key/issues"
   },
   "homepage": "https://github.com/Betterez/btrz-auth-api-key",
-  "scripts": {
-      "publish": "publish"
-  },
   "dependencies": {
     "lodash": "^3.10.1",
     "passport": "^0.2.1",
