@@ -4,7 +4,7 @@
   "description": "Betterez api authorization library",
   "main": "index.js",
   "scripts": {
-    "test": "multi='xunit=test-results/xunit.xml spec=-' node_modules/istanbul-harmony/lib/cli.js cover node_modules/mocha/bin/_mocha -- --ui bdd -R mocha-multi -t 5000",
+    "test": "multi='xunit=test-results/xunit.xml spec=-' node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- --ui bdd -R mocha-multi -t 5000",
     "test-w": "node_modules/mocha/bin/mocha -w",
     "publish": "publish"
   },
