@@ -2,10 +2,10 @@
 
 module.exports = function (options) {
 
-  let ignoredRoutes = (options.ignoredRoutes && Array.isArray(options.ignoredRoutes)) ? options.ignoredRoutes : [];
+  let ignoredRoutes = options.ignoredRoutes && Array.isArray(options.ignoredRoutes) ? options.ignoredRoutes : [];
   let strategyOptions = {
-    apiKeyHeader: (options.authKeyFields && options.authKeyFields.header) ? options.authKeyFields.header : "x-api-key",
-    apiKeyField: (options.authKeyFields && options.authKeyFields.request) ? options.authKeyFields.request : "x-api-key"
+    apiKeyHeader: options.authKeyFields && options.authKeyFields.header ? options.authKeyFields.header : "x-api-key",
+    apiKeyField: options.authKeyFields && options.authKeyFields.request ? options.authKeyFields.request : "x-api-key"
   };
 
   // username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]][/[database][?options]]
