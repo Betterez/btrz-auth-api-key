@@ -23,7 +23,6 @@
   },
   "homepage": "https://github.com/Betterez/btrz-auth-api-key",
   "dependencies": {
-    "istanbul": "^0.4.1",
     "lodash": "^3.10.1",
     "passport": "^0.2.1",
     "passport-localapikey-update": "latest",
@@ -33,7 +32,7 @@
     "chai": "latest",
     "chance": "latest",
     "express": "latest",
-    "istanbul-harmony": "^0.3.1",
+    "istanbul": "^0.4.1",
     "mocha": "latest",
     "mocha-multi": "latest",
     "pow-mongodb-fixtures": "latest",

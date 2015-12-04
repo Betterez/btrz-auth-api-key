@@ -7,5 +7,5 @@ deployment:
   production:
     branch: master
     commands:
-      - ./npmauth.sh
+      - echo -e "$NPM_USERNAME\n$NPM_PASSWORD\n$NPM_EMAIL" | npm login
       - npm publish
