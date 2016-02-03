@@ -48,14 +48,21 @@ module.exports = function (options) {
     return useTestKey(apikey) || useDb(apikey);
   }
 
-  function shouldIgnoreRoute(originalUrl) {
-    return ignoredRoutes.some(function (regExp) {
-      return originalUrl.match(regExp) || null;
+  function shouldIgnoreRoute(originalUrl, method) {
+    return ignoredRoutes.some(function (ignoredRoute) {
+      if (typeof ignoredRoute === "string") {
+        return originalUrl.match(ignoredRoute) || null;
+      } else if (typeof ignoredRoute === "object") {
+        let methodMatches = (ignoredRoute.methods.indexOf(method) > -1);
+        return (methodMatches && originalUrl.match(ignoredRoute.route));
+      } else {
+        return null;
+      }
     });
   }
 
   function innerAuthenticateMiddleware(req, res, next) {
-    if (shouldIgnoreRoute(req.originalUrl) > 0) {
+    if (shouldIgnoreRoute(req.originalUrl, req.method)) {
       next();
     } else {
       passport.authenticate("localapikey", {session: false})(req, res, next);

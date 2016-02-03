@@ -99,6 +99,10 @@ Ex:
     ^/api-docs //will match /api-docs, /api-docs/pets, etc.
     ^/api-docs$ //will match /api-docs and will not match /api-docs/
 
+To ignore only certain HTTP methods on a route, use this syntax:
+
+    {route: "^/api-docs$", methods: ["POST", "PUT"]}
+
 #### authKeyFields
 
 An object containing the possible keys to look for in the HEADERS or in the request.

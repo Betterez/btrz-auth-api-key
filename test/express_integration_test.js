@@ -27,7 +27,11 @@ describe("Express integration", function () {
       "authKeyFields" : {
         request: "apiKey"
       },
-      "ignoredRoutes": ["^/api-docs"],
+      "ignoredRoutes": [
+        "^/api-docs",
+        "^/say-no$",
+        {route: "^/ignored-get-put", methods: ["GET", "PUT"]}
+      ],
       "collection": {
         "name": "apikeys",
         "property": "key"
@@ -56,6 +60,15 @@ describe("Express integration", function () {
     app.get("/hello-world", function (req, res) {
       res.status(200).json(req.account);
     });
+    app.put("/ignored-get-put", function (req, res) {
+      res.status(200).json(req.account);
+    });
+    app.get("/ignored-get-put", function (req, res) {
+      res.status(200).json(req.account);
+    });
+    app.post("/ignored-get-put", function (req, res) {
+      res.status(200).json(req.account);
+    });
     validKey = chance.hash();
     fixtureLoader()
       .load({apikeys: [{accountId: chance.hash(), key: validKey}]}, function () {
@@ -72,6 +85,58 @@ describe("Express integration", function () {
       .get("/api-docs")
       .set("Accept", "application/json")
       .expect(200)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
+  it("should return 401 if no X-API-KEY is present and route should not be secured (strict regexp)", function (done) {
+    request(app)
+      .get("/say-no/more")
+      .set("Accept", "application/json")
+      .expect(401)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
+  it("should return 200 ok if no X-API-KEY is present but route should not be secured (ignore method GET)", function (done) {
+    request(app)
+      .get("/ignored-get-put")
+      .set("Accept", "application/json")
+      .expect(200)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
+  it("should return 200 ok if no X-API-KEY is present but route should not be secured (ignore method PUT)", function (done) {
+    request(app)
+      .put("/ignored-get-put")
+      .set("Accept", "application/json")
+      .expect(200)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
+  it("should return 401 if no X-API-KEY is present and method POST for route is secured", function (done) {
+    request(app)
+      .post("/ignored-get-put")
+      .set("Accept", "application/json")
+      .expect(401)
       .end(function (err) {
         if (err) {
           return done(err);
