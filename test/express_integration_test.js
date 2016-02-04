@@ -13,12 +13,20 @@ function fixtureLoader() {
 describe("Express integration", function () {
 
   let request = require("supertest"),
+   expect = require("chai").expect,
    Chance = require("chance").Chance,
    chance = new Chance(),
    express = require("express"),
+   jwt = require("jsonwebtoken"),
    Authenticator = require("../"),
-   app, validKey, testKey = "test-api-key",
-   testUser = {_id: chance.hash(), name: "Test", last: "User"};
+   app,
+   testKey = "test-api-key",
+   validKey = "72ed8526-24a6-497f-8949-ec7ed6766aaf",
+   privateKey = "492a97f3-597f-4b54-84f5-f8ad3eb6ee36",
+   testUser = {_id: chance.hash(), name: "Test", last: "User"},
+   testFullUser = {_id: chance.hash(), name: "Test", last: "User", display: "Testing"},
+   tokenOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in"},
+   testToken = jwt.sign({user: testFullUser}, privateKey, tokenOptions);
 
   before(function (done) {
     let options = {
@@ -29,6 +37,7 @@ describe("Express integration", function () {
       },
       "ignoredRoutes": [
         "^/api-docs",
+        "^/ignoredsecure",
         "^/say-no$",
         {route: "^/ignored-get-put", methods: ["GET", "PUT"]}
       ],
@@ -69,9 +78,14 @@ describe("Express integration", function () {
     app.post("/ignored-get-put", function (req, res) {
       res.status(200).json(req.account);
     });
-    validKey = chance.hash();
+    app.get("/secured", auth.tokenSecured, function (req, res) {
+      res.status(200).json(req.user);
+    });
+    app.get("/ignoredsecure", auth.tokenSecured, function (req, res) {
+      res.status(200).json(req.account);
+    });
     fixtureLoader()
-      .load({apikeys: [{accountId: chance.hash(), key: validKey}]}, function () {
+      .load({apikeys: [{accountId: chance.hash(), key: validKey, privateKey: privateKey}]}, function () {
         done();
       });
   });
@@ -252,6 +266,80 @@ describe("Express integration", function () {
         if (err) {
           return done(err);
         }
+        done();
+      });
+  });
+
+  it("should require api key header for token secured route", function (done) {
+    request(app)
+      .get("/secured")
+      .set("Authorization", `Bearer ${testToken}`)
+      .set("Accept", "application/json")
+      .expect(401)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
+  it("should require token in token secured route", function (done) {
+    request(app)
+      .get("/secured")
+      .set("X-API-KEY", validKey)
+      .set("Accept", "application/json")
+      .expect(401)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
+  it("should require api key header on ignoredRoutes for token secured route", function (done) {
+    request(app)
+      .get("/ignoredsecure")
+      .set("Authorization", `Bearer ${testToken}`)
+      .set("Accept", "application/json")
+      .expect(401)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
+  it("should authenticate the user with api key and token", function (done) {
+    request(app)
+      .get("/secured")
+      .set("X-API-KEY", validKey)
+      .set("Authorization", `Bearer ${testToken}`)
+      .set("Accept", "application/json")
+      .expect(200)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
+  it("should authenticate with token and set the payload on request.user", function (done) {
+    request(app)
+      .get("/secured")
+      .set("X-API-KEY", validKey)
+      .set("Authorization", `Bearer ${testToken}`)
+      .set("Accept", "application/json")
+      .expect(200)
+      .end(function (err, response) {
+        if (err) {
+          return done(err);
+        }
+        let user = JSON.parse(response.text).user;
+        expect(user).to.deep.equal(testFullUser);
         done();
       });
   });

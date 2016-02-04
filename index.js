@@ -23,7 +23,8 @@ module.exports = function (options) {
     passport = require("passport"),
     LocalStrategy = require("passport-localapikey-update").Strategy,
     pmongo = require("promised-mongo"),
-    db = pmongo(connectionString(options.db));
+    db = pmongo(connectionString(options.db)),
+    jwt = require("jsonwebtoken");
 
   function useTestKey(apikey) {
     if (apikey === options.testKey) {
@@ -80,12 +81,35 @@ module.exports = function (options) {
     }
   ));
 
+  function authenticateTokenMiddleware (req, res, next) {
+    if (!req.account || !req.account.privateKey || !req.headers.authorization) {
+      return res.status(401).send("Unauthorized");
+    }
+    let token = req.headers.authorization.replace(/^Bearer /, "");
+    let tokenVerifyOptions = {
+        algorithms: ["HS512"],
+        subject: "account_user_sign_in",
+        issuer: "btrz-api-accounts",
+    };
+    try {
+      let tokenPayload = jwt.verify(token, req.account.privateKey, tokenVerifyOptions);
+      req.user = tokenPayload;
+      next();
+    } catch (err) {
+      if (err.name === "TokenExpiredError" || err.name === "JsonWebTokenError") {
+        return res.status(401).send("Unauthorized");
+      }
+      return next(err);
+    }
+  }
+
   return {
     initialize: function (passportInitOptions) {
       return passport.initialize(passportInitOptions);
     },
     authenticate: function () {
       return innerAuthenticateMiddleware;
-    }
+    },
+    tokenSecured: authenticateTokenMiddleware
   };
 };

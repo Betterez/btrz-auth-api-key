@@ -114,3 +114,14 @@ The request key will be mapped to a query string or body parameter. If no option
 The db options and uris array will be used to connect to the MongoDb (single server or cluster) to check for the apikey.
 
 The `collection.name` and `collection.property` will be used to try to find one record that contains the value provided on X-API-KEY to the service.
+
+
+#### auth.tokenSecured
+
+This middleware, when used on a route definition, validates the request includes a Bearer Token that is a valid JSON Web Token as issued by the authorization endpoint on btrz-api-accounts.
+
+Usage:
+
+    app.get("/secured", auth.tokenSecured, function (req, res) {
+        ...
+    });
