@@ -26,12 +26,14 @@ describe("Express integration", function () {
    testUser = {_id: chance.hash(), name: "Test", last: "User"},
    testFullUser = {_id: chance.hash(), name: "Test", last: "User", display: "Testing"},
    tokenOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in"},
-   testToken = jwt.sign({user: testFullUser}, privateKey, tokenOptions);
+   validToken = jwt.sign({user: testFullUser}, privateKey, tokenOptions),
+   testToken = "test-token";
 
   before(function (done) {
     let options = {
       "testKey": testKey,
       "testUser": testUser,
+      "testToken": testToken,
       "authKeyFields" : {
         request: "apiKey"
       },
@@ -273,7 +275,7 @@ describe("Express integration", function () {
   it("should require api key header for token secured route", function (done) {
     request(app)
       .get("/secured")
-      .set("Authorization", `Bearer ${testToken}`)
+      .set("Authorization", `Bearer ${validToken}`)
       .set("Accept", "application/json")
       .expect(401)
       .end(function (err) {
@@ -301,7 +303,7 @@ describe("Express integration", function () {
   it("should require api key header on ignoredRoutes for token secured route", function (done) {
     request(app)
       .get("/ignoredsecure")
-      .set("Authorization", `Bearer ${testToken}`)
+      .set("Authorization", `Bearer ${validToken}`)
       .set("Accept", "application/json")
       .expect(401)
       .end(function (err) {
@@ -313,6 +315,21 @@ describe("Express integration", function () {
   });
 
   it("should authenticate the user with api key and token", function (done) {
+    request(app)
+      .get("/secured")
+      .set("X-API-KEY", validKey)
+      .set("Authorization", `Bearer ${validToken}`)
+      .set("Accept", "application/json")
+      .expect(200)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
+  it("should authenticate the user with api key and a test token", function (done) {
     request(app)
       .get("/secured")
       .set("X-API-KEY", validKey)
@@ -331,7 +348,7 @@ describe("Express integration", function () {
     request(app)
       .get("/secured")
       .set("X-API-KEY", validKey)
-      .set("Authorization", `Bearer ${testToken}`)
+      .set("Authorization", `Bearer ${validToken}`)
       .set("Accept", "application/json")
       .expect(200)
       .end(function (err, response) {
@@ -343,5 +360,7 @@ describe("Express integration", function () {
         done();
       });
   });
+
+
 
 });

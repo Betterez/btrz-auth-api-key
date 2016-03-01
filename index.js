@@ -39,6 +39,19 @@ module.exports = function (options) {
     return null;
   }
 
+  function useTestToken(token) {
+    if (token === options.testToken) {
+      return new Promise(function (resolve) {
+        if (options.testUser) {
+          resolve(options.testUser);
+        } else {
+          resolve(true);
+        }
+      });
+    }
+    return null;
+  }
+
   function useDb(apikey) {
     let query = {};
     query[options.collection.property] =  apikey;
@@ -92,7 +105,7 @@ module.exports = function (options) {
         issuer: "btrz-api-accounts",
     };
     try {
-      let tokenPayload = jwt.verify(token, req.account.privateKey, tokenVerifyOptions);
+      let tokenPayload = useTestToken(token) || jwt.verify(token, req.account.privateKey, tokenVerifyOptions);
       req.user = tokenPayload;
       next();
     } catch (err) {
