@@ -89,11 +89,11 @@ describe("Express integration", function () {
     app.get("/ignoredsecure", auth.tokenSecured, function (req, res) {
       res.status(200).json(req.account);
     });
-    app.get("/backoffice", auth.tokenSecured, auth.backofficeEnabled, function (req, res) {
-      res.status(200).json(req.user);
+    app.get("/backoffice", auth.tokenSecuredForBackoffice, function (req, res) {
+      res.status(200).json(req.user || {message: "no token"});
     });
-    app.post("/backoffice", auth.tokenSecured, auth.backofficeEnabled, function (req, res) {
-      res.status(200).json(req.user);
+    app.post("/backoffice", auth.tokenSecuredForBackoffice, function (req, res) {
+      res.status(200).json(req.user || {message: "no token"});
     });
     fixtureLoader()
       .load({apikeys: [{accountId: chance.hash(), key: validKey, privateKey: privateKey}]}, function () {
@@ -370,7 +370,7 @@ describe("Express integration", function () {
       });
   });
 
-  describe("backofficeEnabled middleware", function () {
+  describe("tokenSecuredForBackoffice middleware", function () {
 
     it("should not check the token if querystring does not reference channel", function (done) {
       request(app)
@@ -383,8 +383,8 @@ describe("Express integration", function () {
           if (err) {
             return done(err);
           }
-          let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(testFullUser);
+          let message = JSON.parse(response.text).message;
+          expect(message).to.equal("no token");
           done();
         });
     });
@@ -415,8 +415,8 @@ describe("Express integration", function () {
           if (err) {
             return done(err);
           }
-          let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(testFullUser);
+          let message = JSON.parse(response.text).message;
+          expect(message).to.equal("no token");
           done();
         });
     });
@@ -450,8 +450,8 @@ describe("Express integration", function () {
           if (err) {
             return done(err);
           }
-          let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(testFullUser);
+          let message = JSON.parse(response.text).message;
+          expect(message).to.equal("no token");
           done();
         });
     });
@@ -484,8 +484,8 @@ describe("Express integration", function () {
           if (err) {
             return done(err);
           }
-          let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(testFullUser);
+          let message = JSON.parse(response.text).message;
+          expect(message).to.equal("no token");
           done();
         });
     });

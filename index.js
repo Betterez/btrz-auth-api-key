@@ -116,16 +116,24 @@ module.exports = function (options) {
     }
   }
 
-  //if channel 'backoffice' is requested in the body,
-  //checks request has a validated token for backoffice ('betterez-app' internal application)
-  function backofficeEnabled (req, res, next) {
+  //if channel 'backoffice' is requested in the body or querystring,
+  //checks request has a valid token for backoffice ('betterez-app' internal application)
+  function tokenSecuredForBackoffice (req, res, next) {
     let channel = (req.body ? req.body.channel : "") || (req.query ? req.query.channel : "");
     if (channel === "backoffice") {
-      if (!req.user || req.user.name !== "betterez-app" || !req.user.internal) {
-        return res.status(401).send("Unauthorized");
-      }
+      authenticateTokenMiddleware(req, res, function (err) {
+        if (err) {
+          return next(err);
+        }
+        if (!req.user || req.user.name !== "betterez-app" || !req.user.internal) {
+          return res.status(401).send("Unauthorized");
+        } else {
+          next();
+        }
+      });
+    } else {
+      next();
     }
-    next();
   }
 
   return {
@@ -136,6 +144,6 @@ module.exports = function (options) {
       return innerAuthenticateMiddleware;
     },
     tokenSecured: authenticateTokenMiddleware,
-    backofficeEnabled: backofficeEnabled
+    tokenSecuredForBackoffice: tokenSecuredForBackoffice
   };
 };
