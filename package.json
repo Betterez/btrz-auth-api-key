@@ -1,6 +1,6 @@
 {
   "name": "btrz-auth-api-key",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Betterez api authorization library",
   "main": "index.js",
   "scripts": {
@@ -33,6 +33,7 @@
   "devDependencies": {
     "chai": "latest",
     "chance": "latest",
+    "body-parser": "latest",
     "express": "latest",
     "istanbul": "^0.4.1",
     "mocha": "latest",

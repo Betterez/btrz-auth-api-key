@@ -116,6 +116,18 @@ module.exports = function (options) {
     }
   }
 
+  //if channel 'backoffice' is requested in the body,
+  //checks request has a validated token for backoffice ('betterez-app' internal application)
+  function backofficeEnabled (req, res, next) {
+    let channel = (req.body ? req.body.channel : "") || (req.query ? req.query.channel : "");
+    if (channel === "backoffice") {
+      if (!req.user || req.user.name !== "betterez-app" || !req.user.internal) {
+        return res.status(401).send("Unauthorized");
+      }
+    }
+    next();
+  }
+
   return {
     initialize: function (passportInitOptions) {
       return passport.initialize(passportInitOptions);
@@ -123,6 +135,7 @@ module.exports = function (options) {
     authenticate: function () {
       return innerAuthenticateMiddleware;
     },
-    tokenSecured: authenticateTokenMiddleware
+    tokenSecured: authenticateTokenMiddleware,
+    backofficeEnabled: backofficeEnabled
   };
 };

@@ -13,21 +13,23 @@ function fixtureLoader() {
 describe("Express integration", function () {
 
   let request = require("supertest"),
-   expect = require("chai").expect,
-   Chance = require("chance").Chance,
-   chance = new Chance(),
-   express = require("express"),
-   jwt = require("jsonwebtoken"),
-   Authenticator = require("../"),
-   app,
-   testKey = "test-api-key",
-   validKey = "72ed8526-24a6-497f-8949-ec7ed6766aaf",
-   privateKey = "492a97f3-597f-4b54-84f5-f8ad3eb6ee36",
-   testUser = {_id: chance.hash(), name: "Test", last: "User"},
-   testFullUser = {_id: chance.hash(), name: "Test", last: "User", display: "Testing"},
-   tokenOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in"},
-   validToken = jwt.sign({user: testFullUser}, privateKey, tokenOptions),
-   testToken = "test-token";
+    expect = require("chai").expect,
+    Chance = require("chance").Chance,
+    chance = new Chance(),
+    express = require("express"),
+    bodyParser = require("body-parser"),
+    jwt = require("jsonwebtoken"),
+    Authenticator = require("../"),
+    app,
+    testKey = "test-api-key",
+    validKey = "72ed8526-24a6-497f-8949-ec7ed6766aaf",
+    privateKey = "492a97f3-597f-4b54-84f5-f8ad3eb6ee36",
+    testUser = {_id: chance.hash(), name: "Test", last: "User"},
+    testFullUser = {_id: chance.hash(), name: "Test", last: "User", display: "Testing"},
+    tokenOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in"},
+    validToken = jwt.sign({user: testFullUser}, privateKey, tokenOptions),
+    validBackofficeToken = jwt.sign({user: testFullUser, name: "betterez-app", internal: true}, privateKey, tokenOptions),
+    testToken = "test-token";
 
   before(function (done) {
     let options = {
@@ -62,6 +64,7 @@ describe("Express integration", function () {
     app = express();
     app.use(auth.initialize({userProperty: "account"}));
     app.use(auth.authenticate());
+    app.use(bodyParser.json());
     app.get("/api-docs", function (req, res) {
       res.status(200).json({docs: "documents"});
     });
@@ -85,6 +88,12 @@ describe("Express integration", function () {
     });
     app.get("/ignoredsecure", auth.tokenSecured, function (req, res) {
       res.status(200).json(req.account);
+    });
+    app.get("/backoffice", auth.tokenSecured, auth.backofficeEnabled, function (req, res) {
+      res.status(200).json(req.user);
+    });
+    app.post("/backoffice", auth.tokenSecured, auth.backofficeEnabled, function (req, res) {
+      res.status(200).json(req.user);
     });
     fixtureLoader()
       .load({apikeys: [{accountId: chance.hash(), key: validKey, privateKey: privateKey}]}, function () {
@@ -361,6 +370,144 @@ describe("Express integration", function () {
       });
   });
 
+  describe("backofficeEnabled middleware", function () {
+
+    it("should not check the token if querystring does not reference channel", function (done) {
+      request(app)
+        .get("/backoffice")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let user = JSON.parse(response.text).user;
+          expect(user).to.deep.equal(testFullUser);
+          done();
+        });
+    });
+
+    it("should not authorize if querystring requests channel=backoffice and token is not for the internal app", function (done) {
+      request(app)
+        .get("/backoffice?channel=backoffice")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(401)
+        .end(function (err) {
+          if (err) {
+            return done(err);
+          }
+          done();
+        });
+    });
+
+    it("should not check the token if querystring references another channel", function (done) {
+      request(app)
+        .get("/backoffice?channel=websales")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let user = JSON.parse(response.text).user;
+          expect(user).to.deep.equal(testFullUser);
+          done();
+        });
+    });
+
+    it("should authorize if querystring requests channel=backoffice and token is for the internal app", function (done) {
+      request(app)
+        .get("/backoffice?channel=backoffice")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validBackofficeToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let user = JSON.parse(response.text).user;
+          expect(user).to.deep.equal(testFullUser);
+          done();
+        });
+    });
+
+    it("should not check the token if body does not reference channel", function (done) {
+      request(app)
+        .post("/backoffice")
+        .send({})
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let user = JSON.parse(response.text).user;
+          expect(user).to.deep.equal(testFullUser);
+          done();
+        });
+    });
+
+    it("should not authorize if body requests channel=backoffice and token is not for the internal app", function (done) {
+      request(app)
+        .post("/backoffice")
+        .send({channel: "backoffice"})
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(401)
+        .end(function (err) {
+          if (err) {
+            return done(err);
+          }
+          done();
+        });
+    });
+
+    it("should not check the token if body references another channel", function (done) {
+      request(app)
+        .post("/backoffice")
+        .send({channel: "websales"})
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let user = JSON.parse(response.text).user;
+          expect(user).to.deep.equal(testFullUser);
+          done();
+        });
+    });
+
+    it("should authorize if body requests channel=backoffice and token is for the internal app", function (done) {
+      request(app)
+        .post("/backoffice")
+        .send({channel: "backoffice"})
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validBackofficeToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let user = JSON.parse(response.text).user;
+          expect(user).to.deep.equal(testFullUser);
+          done();
+        });
+    });
+  });
 
 
 });
