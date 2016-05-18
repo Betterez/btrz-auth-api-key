@@ -507,6 +507,24 @@ describe("Express integration", function () {
           done();
         });
     });
+
+    it("should authorize the configured test token", function (done) {
+      request(app)
+        .post("/backoffice")
+        .send({channel: "websales"})
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${testToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let message = JSON.parse(response.text).message;
+          expect(message).to.equal("no token");
+          done();
+        });
+    });
   });
 
 

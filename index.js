@@ -40,7 +40,7 @@ module.exports = function (options) {
   }
 
   function useTestToken(token) {
-    if (token === options.testToken) {
+    if (isTestToken(token)) {
       return new Promise(function (resolve) {
         if (options.testUser) {
           resolve(options.testUser);
@@ -50,6 +50,10 @@ module.exports = function (options) {
       });
     }
     return null;
+  }
+
+  function isTestToken (token) {
+    return (token === options.testToken);
   }
 
   function useDb(apikey) {
@@ -94,11 +98,15 @@ module.exports = function (options) {
     }
   ));
 
+  function getToken (req) {
+    return req.headers.authorization.replace(/^Bearer /, "");
+  }
+
   function authenticateTokenMiddleware (req, res, next) {
     if (!req.account || !req.account.privateKey || !req.headers.authorization) {
       return res.status(401).send("Unauthorized");
     }
-    let token = req.headers.authorization.replace(/^Bearer /, "");
+    let token = getToken(req);
     let tokenVerifyOptions = {
         algorithms: ["HS512"],
         subject: "account_user_sign_in",
@@ -125,14 +133,17 @@ module.exports = function (options) {
         if (err) {
           return next(err);
         }
+        if (isTestToken(getToken(req))) {
+          return next();
+        }
         if (!req.user || req.user.name !== "betterez-app" || !req.user.internal) {
           return res.status(401).send("Unauthorized");
         } else {
-          next();
+          return next();
         }
       });
     } else {
-      next();
+      return next();
     }
   }
 
