@@ -9,21 +9,11 @@ module.exports = function (options) {
   };
 
   // username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]][/[database][?options]]
-  function connectionString(dbConfig) {
-    let hostPortPairs = dbConfig.uris.map(function (uri) {
-      return `${uri}`;
-    }).join(",");
-    if (dbConfig.options.username.length > 0) {
-      return `${dbConfig.options.username}:${dbConfig.options.password}@${hostPortPairs}/${dbConfig.options.database}`;
-    }
-    return `${hostPortPairs}/${dbConfig.options.database}`;
-  }
 
-  let _ = require("lodash"),
-    passport = require("passport"),
+  let passport = require("passport"),
     LocalStrategy = require("passport-localapikey-update").Strategy,
-    pmongo = require("promised-mongo"),
-    db = pmongo(connectionString(options.db)),
+    SimpleDao = require("btrz-simple-dao").SimpleDao,
+    simpleDao = new SimpleDao(options),
     jwt = require("jsonwebtoken");
 
   function useTestKey(apikey) {
@@ -59,7 +49,13 @@ module.exports = function (options) {
   function useDb(apikey) {
     let query = {};
     query[options.collection.property] =  apikey;
-    return db.collection(options.collection.name).findOne(query);
+    return simpleDao.connect()
+      .then((db) => {
+        return db.collection(options.collection.name).findOne(query);
+      })
+      .catch((err) => {
+        return Promise.reject(err);
+      });
   }
 
   function findByApiKey(apikey) {
@@ -89,8 +85,9 @@ module.exports = function (options) {
 
   passport.use(new LocalStrategy(strategyOptions,
     function (apikey, done) {
-      let onSuccess = _.partial(done, null),
-        onErr = _.partialRight(done, null);
+      let onSuccess = function (result) { return done(null, result); },
+        onErr = function (err) { return done(err, null); };
+
       let result = findByApiKey(apikey).then(onSuccess, onErr);
       if (result.done) {
         result.done();
