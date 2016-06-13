@@ -121,11 +121,30 @@ module.exports = function (options) {
     }
   }
 
-  //if channel 'backoffice' is requested in the body or querystring,
+  //if channel 'backoffice' or 'agency-backoffice' is requested in the body or querystring,
   //checks request has a valid token for backoffice ('betterez-app' internal application)
   function tokenSecuredForBackoffice (req, res, next) {
     let channel = (req.body ? req.body.channel : "") || (req.query ? req.query.channel : "");
-    if (channel === "backoffice") {
+    let channels = (req.body ? req.body.channels : "") || (req.query ? req.query.channels : "");
+    let mustAuth = false;
+
+    if (channels) {
+      if (!Array.isArray(channels)) {
+        channels = channels.split(",");
+      }
+
+      channels.forEach(function (ch) {
+        if (ch.trim().toLowerCase() === "backoffice" || ch.trim().toLowerCase() === "agency-backoffice") {
+          mustAuth = true;
+          return;
+        }
+      });
+    }
+    if (!mustAuth && channel && (channel.trim().toLowerCase() === "backoffice" || channel.trim().toLowerCase() === "agency-backoffice")) {
+      mustAuth = true;
+    }
+
+    if (mustAuth) {
       authenticateTokenMiddleware(req, res, function (err) {
         if (err) {
           return next(err);

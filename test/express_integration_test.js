@@ -404,6 +404,51 @@ describe("Express integration", function () {
         });
     });
 
+    it("should not authorize if querystring requests channel=agency-backoffice and token is not for the internal app", function (done) {
+      request(app)
+        .get("/backoffice?channel=agency-backoffice")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(401)
+        .end(function (err) {
+          if (err) {
+            return done(err);
+          }
+          done();
+        });
+    });
+
+    it("should not authorize if querystring requests channels contain backoffice and token is not for the internal app", function (done) {
+      request(app)
+        .get("/backoffice?channels=websales,backoffice")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(401)
+        .end(function (err) {
+          if (err) {
+            return done(err);
+          }
+          done();
+        });
+    });
+
+    it("should not authorize if querystring requests channels contain agency-backoffice and token is not for the internal app", function (done) {
+      request(app)
+        .get("/backoffice?channels=websales,agency-backoffice")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(401)
+        .end(function (err) {
+          if (err) {
+            return done(err);
+          }
+          done();
+        });
+    });
+
     it("should not check the token if querystring references another channel", function (done) {
       request(app)
         .get("/backoffice?channel=websales")
@@ -424,6 +469,57 @@ describe("Express integration", function () {
     it("should authorize if querystring requests channel=backoffice and token is for the internal app", function (done) {
       request(app)
         .get("/backoffice?channel=backoffice")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validBackofficeToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let user = JSON.parse(response.text).user;
+          expect(user).to.deep.equal(testFullUser);
+          done();
+        });
+    });
+
+    it("should authorize if querystring requests channel=agency-backoffice and token is for the internal app", function (done) {
+      request(app)
+        .get("/backoffice?channel=agency-backoffice")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validBackofficeToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let user = JSON.parse(response.text).user;
+          expect(user).to.deep.equal(testFullUser);
+          done();
+        });
+    });
+
+    it("should authorize if querystring requests channels cointain agency-backoffice and token is for the internal app", function (done) {
+      request(app)
+        .get("/backoffice?channels=any,agency-backoffice")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validBackofficeToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let user = JSON.parse(response.text).user;
+          expect(user).to.deep.equal(testFullUser);
+          done();
+        });
+    });
+
+    it("should authorize if querystring requests channels cointain backoffice and token is for the internal app", function (done) {
+      request(app)
+        .get("/backoffice?channels=any,backoffice")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validBackofficeToken}`)
         .set("Accept", "application/json")
@@ -472,6 +568,39 @@ describe("Express integration", function () {
         });
     });
 
+    it("should not authorize if body requests channel=agency-backoffice and token is not for the internal app", function (done) {
+      request(app)
+        .post("/backoffice")
+        .send({channel: "agency-Backoffice"})
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(401)
+        .end(function (err) {
+          if (err) {
+            return done(err);
+          }
+          done();
+        });
+    });
+
+    it("should not authorize if body requests channels contain backoffice and token is not for the internal app", function (done) {
+      request(app)
+        .post("/backoffice")
+        .send({channels: ["any", "backOffice"]})
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(401)
+        .end(function (err) {
+          if (err) {
+            return done(err);
+          }
+          done();
+        });
+    });
+
+
     it("should not check the token if body references another channel", function (done) {
       request(app)
         .post("/backoffice")
@@ -494,6 +623,42 @@ describe("Express integration", function () {
       request(app)
         .post("/backoffice")
         .send({channel: "backoffice"})
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validBackofficeToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let user = JSON.parse(response.text).user;
+          expect(user).to.deep.equal(testFullUser);
+          done();
+        });
+    });
+
+    it("should authorize if body requests channel=agency-backoffice and token is for the internal app", function (done) {
+      request(app)
+        .post("/backoffice")
+        .send({channel: "agency-backoffice"})
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validBackofficeToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let user = JSON.parse(response.text).user;
+          expect(user).to.deep.equal(testFullUser);
+          done();
+        });
+    });
+
+    it("should authorize if body requests channels contain backoffice and token is for the internal app", function (done) {
+      request(app)
+        .post("/backoffice")
+        .send({channels: ["any", "backoffice"]})
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validBackofficeToken}`)
         .set("Accept", "application/json")
