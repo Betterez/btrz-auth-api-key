@@ -28,7 +28,7 @@ describe("Express integration", function () {
     testFullUser = {_id: chance.hash(), name: "Test", last: "User", display: "Testing"},
     tokenOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in"},
     validToken = jwt.sign({user: testFullUser}, privateKey, tokenOptions),
-    validBackofficeToken = jwt.sign({user: testFullUser, name: "betterez-app", internal: true}, privateKey, tokenOptions),
+    validBackofficeToken = jwt.sign({user: testFullUser, aud: "betterez-app"}, privateKey, tokenOptions),
     testToken = "test-token";
 
   before(function (done) {

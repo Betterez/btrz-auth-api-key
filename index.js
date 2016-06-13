@@ -133,7 +133,7 @@ module.exports = function (options) {
         if (isTestToken(getToken(req))) {
           return next();
         }
-        if (!req.user || req.user.name !== "betterez-app" || !req.user.internal) {
+        if (!req.user || req.user.aud !== "betterez-app") {
           return res.status(401).send("Unauthorized");
         } else {
           return next();
