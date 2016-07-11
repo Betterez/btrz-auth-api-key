@@ -1,6 +1,6 @@
 {
   "name": "btrz-auth-api-key",
-  "version": "1.5.6",
+  "version": "1.5.7",
   "description": "Betterez api authorization library",
   "main": "index.js",
   "scripts": {
@@ -24,7 +24,7 @@
   },
   "homepage": "https://github.com/Betterez/btrz-auth-api-key",
   "dependencies": {
-    "btrz-simple-dao": "^2.1.1",
+    "btrz-simple-dao": "^2.1.2",
     "jsonwebtoken": "^5.7.0",
     "passport": "^0.2.2",
     "passport-localapikey-update": "^0.5.0"
