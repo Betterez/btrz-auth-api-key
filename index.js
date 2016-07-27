@@ -31,13 +31,11 @@ module.exports = function (options) {
 
   function useTestToken(token) {
     if (isTestToken(token)) {
-      return new Promise(function (resolve) {
-        if (options.testUser) {
-          resolve(options.testUser);
-        } else {
-          resolve(true);
-        }
-      });
+      if (options.testUser) {
+        return options.testUser;
+      } else {
+        return true;
+      }
     }
     return null;
   }
