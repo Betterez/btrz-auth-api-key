@@ -101,7 +101,7 @@ module.exports = function (options) {
     return req.headers.authorization.replace(/^Bearer /, "");
   }
 
-  function authenticateTokenMiddleware (req, res, next) {
+  function authenticateTokenMiddleware (req, res, next, options) {
     if (!req.account || !req.account.privateKey || !req.headers.authorization) {
       return res.status(401).send("Unauthorized");
     }
@@ -111,6 +111,12 @@ module.exports = function (options) {
         subject: "account_user_sign_in",
         issuer: "btrz-api-accounts",
     };
+    if (options) {
+      if (options.audience) {
+        tokenVerifyOptions.audience = options.audience;
+      }
+    }
+
     try {
       let tokenPayload = useTestToken(token) || jwt.verify(token, req.account.privateKey, tokenVerifyOptions);
       req.user = tokenPayload;
@@ -121,6 +127,10 @@ module.exports = function (options) {
       }
       return next(err);
     }
+  }
+
+  function tokenSecured (req, res, next) {
+    return authenticateTokenMiddleware(req, res, next);
   }
 
   //if channel 'backoffice' or 'agency-backoffice' is requested in the body or querystring,
@@ -165,6 +175,10 @@ module.exports = function (options) {
     }
   }
 
+  function customerTokenSecured (req, res, next) {
+    return authenticateTokenMiddleware(req, res, next, {audience: "customer"});
+  }
+
   return {
     initialize: function (passportInitOptions) {
       return passport.initialize(passportInitOptions);
@@ -172,7 +186,8 @@ module.exports = function (options) {
     authenticate: function () {
       return innerAuthenticateMiddleware;
     },
-    tokenSecured: authenticateTokenMiddleware,
-    tokenSecuredForBackoffice: tokenSecuredForBackoffice
+    tokenSecured: tokenSecured,
+    tokenSecuredForBackoffice: tokenSecuredForBackoffice,
+    customerTokenSecured: customerTokenSecured
   };
 };

@@ -29,6 +29,7 @@ describe("Express integration", function () {
     tokenOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in"},
     validToken = jwt.sign({user: testFullUser}, privateKey, tokenOptions),
     validBackofficeToken = jwt.sign({user: testFullUser, aud: "betterez-app"}, privateKey, tokenOptions),
+    validCustomerToken = jwt.sign({customer: {_id: 1, customerNumber: "111-222-333"}, aud: "customer"}, privateKey, tokenOptions),
     testToken = "test-token";
 
   before(function (done) {
@@ -94,6 +95,9 @@ describe("Express integration", function () {
     });
     app.post("/backoffice", auth.tokenSecuredForBackoffice, function (req, res) {
       res.status(200).json(req.user || {message: "no token"});
+    });
+    app.get("/customer", auth.customerTokenSecured, function (req, res) {
+      res.status(200).json(req.user || {});
     });
     fixtureLoader()
       .load({apikeys: [{accountId: chance.hash(), key: validKey, privateKey: privateKey}]}, function () {
@@ -692,5 +696,53 @@ describe("Express integration", function () {
     });
   });
 
+  describe("customerTokenSecured middleware", function () {
 
+    it("should fail to authenticate customer with user token", function (done) {
+      request(app)
+        .get("/customer")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(401)
+        .end(function (err) {
+          if (err) {
+            return done(err);
+          }
+          done();
+        });
+    });
+
+    it("should require API key header for customer token secured route", function (done) {
+      request(app)
+        .get("/customer")
+        .set("Authorization", `Bearer ${validCustomerToken}`)
+        .set("Accept", "application/json")
+        .expect(401)
+        .end(function (err) {
+          if (err) {
+            return done(err);
+          }
+          done();
+        });
+    });
+
+    it("should authenticate customer with token and set customer on request", function (done) {
+      request(app)
+        .get("/customer")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validCustomerToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let customer = JSON.parse(response.text).customer;
+          expect(customer.customerNumber).to.equal("111-222-333");
+          done();
+        });
+    });
+
+  });
 });
