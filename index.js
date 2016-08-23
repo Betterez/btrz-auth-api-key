@@ -4,6 +4,7 @@ module.exports = function (options) {
 
   let ignoredRoutes = options.ignoredRoutes && Array.isArray(options.ignoredRoutes) ? options.ignoredRoutes : [];
   let strategyOptions = {
+    passReqToCallback: true,
     apiKeyHeader: options.authKeyFields && options.authKeyFields.header ? options.authKeyFields.header : "x-api-key",
     apiKeyField: options.authKeyFields && options.authKeyFields.request ? options.authKeyFields.request : "x-api-key"
   };
@@ -82,9 +83,12 @@ module.exports = function (options) {
   }
 
   passport.use(new LocalStrategy(strategyOptions,
-    function (apikey, done) {
-      let onSuccess = function (result) { return done(null, result); },
-        onErr = function (err) { return done(err, null); };
+    function (req, apikey, done) {
+      let onSuccess = function (result) {
+        req.application = result;
+        return done(null, result);
+      };
+      let onErr = function (err) { return done(err, null); };
 
       let result = findByApiKey(apikey).then(onSuccess, onErr);
       if (result.done) {
