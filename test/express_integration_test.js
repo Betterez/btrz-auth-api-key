@@ -30,10 +30,11 @@ describe("Express integration", function () {
     validToken = jwt.sign({user: testFullUser}, privateKey, tokenOptions),
     validBackofficeToken = jwt.sign({user: testFullUser, aud: "betterez-app"}, privateKey, tokenOptions),
     validCustomerToken = jwt.sign({customer: {_id: 1, customerNumber: "111-222-333"}, aud: "customer"}, privateKey, tokenOptions),
-    testToken = "test-token";
+    testToken = "test-token",
+    options;
 
   before(function (done) {
-    let options = {
+    options = {
       "testKey": testKey,
       "testUser": testUser,
       "testToken": testToken,
@@ -694,6 +695,79 @@ describe("Express integration", function () {
           done();
         });
     });
+
+    describe("testing options audiences array", function () {
+      before(function () {
+        options.audiences = ["betterez-app", "btrz-mobile-scanner"];
+      });
+
+      it("should not authorize if querystring requests channel=backoffice and token is not for the internal app", function (done) {
+        request(app)
+          .get("/backoffice?channel=backoffice")
+          .set("X-API-KEY", validKey)
+          .set("Authorization", `Bearer ${validToken}`)
+          .set("Accept", "application/json")
+          .expect(401)
+          .end(function (err) {
+            if (err) {
+              return done(err);
+            }
+            done();
+          });
+      });
+
+      it("should not authorize if querystring requests channel=backoffice and token is for other-app", function (done) {
+        let validBackofficeTokenForOtherApp = jwt.sign({user: testFullUser, aud: "other-app"}, privateKey, tokenOptions);
+        request(app)
+          .get("/backoffice?channel=backoffice")
+          .set("X-API-KEY", validKey)
+          .set("Authorization", `Bearer ${validBackofficeTokenForOtherApp}`)
+          .set("Accept", "application/json")
+          .expect(401)
+          .end(function (err) {
+            if (err) {
+              return done(err);
+            }
+            done();
+          });
+      });
+
+      it("should authorize if querystring requests channel=backoffice and token is for btrz-mobile-scanner", function (done) {
+        let validBackofficeTokenForMobileApp = jwt.sign({user: testFullUser, aud: "btrz-mobile-scanner"}, privateKey, tokenOptions);
+        request(app)
+          .get("/backoffice?channel=backoffice")
+          .set("X-API-KEY", validKey)
+          .set("Authorization", `Bearer ${validBackofficeTokenForMobileApp}`)
+          .set("Accept", "application/json")
+          .expect(200)
+          .end(function (err, response) {
+            if (err) {
+              return done(err);
+            }
+            let user = JSON.parse(response.text).user;
+            expect(user).to.deep.equal(testFullUser);
+            done();
+          });
+      });
+
+      it("should authorize if querystring requests channel=backoffice and token is for betterez-app", function (done) {
+        let validBackofficeTokenForBetterezApp = jwt.sign({user: testFullUser, aud: "betterez-app"}, privateKey, tokenOptions);
+        request(app)
+          .get("/backoffice?channel=backoffice")
+          .set("X-API-KEY", validKey)
+          .set("Authorization", `Bearer ${validBackofficeTokenForBetterezApp}`)
+          .set("Accept", "application/json")
+          .expect(200)
+          .end(function (err, response) {
+            if (err) {
+              return done(err);
+            }
+            let user = JSON.parse(response.text).user;
+            expect(user).to.deep.equal(testFullUser);
+            done();
+          });
+      });
+    });
   });
 
   describe("customerTokenSecured middleware", function () {
@@ -743,6 +817,5 @@ describe("Express integration", function () {
           done();
         });
     });
-
   });
 });

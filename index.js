@@ -45,6 +45,10 @@ module.exports = function (options) {
     return (token === options.testToken);
   }
 
+  function isCorrectBackOfficeAudience(audience) {
+    return Array.isArray(options.audiences) ? options.audiences.indexOf(audience) > -1 : audience === "betterez-app";
+  }
+
   function useDb(apikey) {
     let query = {};
     query[options.collection.property] =  apikey;
@@ -164,7 +168,7 @@ module.exports = function (options) {
         if (isTestToken(getToken(req))) {
           return next();
         }
-        if (!req.user || req.user.aud !== "betterez-app") {
+        if (!req.user || !isCorrectBackOfficeAudience(req.user.aud)) {
           return res.status(401).send("Unauthorized");
         } else {
           return next();
