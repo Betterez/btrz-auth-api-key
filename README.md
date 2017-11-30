@@ -125,3 +125,14 @@ Usage:
     app.get("/secured", auth.tokenSecured, function (req, res) {
         ...
     });
+
+
+#### auth.tokenSecuredForAudiences
+
+This middleware works just like tokenSecured, but allows to pass a list of audiences. The token will be validated as usual, and will be valid if it is issued for at least one of the audiences listed.
+
+In this example, the route will be valid for customers or backoffice users:
+
+    app.get("/secured", auth.tokenSecuredForAudiences(["betterez-app", "customer"]), function (req, res) {
+        ...
+    });

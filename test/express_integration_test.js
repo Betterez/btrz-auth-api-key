@@ -29,6 +29,7 @@ describe("Express integration", function () {
     tokenOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in"},
     validToken = jwt.sign({user: testFullUser}, privateKey, tokenOptions),
     validBackofficeToken = jwt.sign({user: testFullUser, aud: "betterez-app"}, privateKey, tokenOptions),
+    validBackofficeTokenForOtherApp = jwt.sign({user: testFullUser, aud: "other-app"}, privateKey, tokenOptions),
     validCustomerToken = jwt.sign({customer: {_id: 1, customerNumber: "111-222-333"}, aud: "customer"}, privateKey, tokenOptions),
     testToken = "test-token",
     options;
@@ -98,6 +99,9 @@ describe("Express integration", function () {
       res.status(200).json(req.user || {message: "no token"});
     });
     app.get("/customer", auth.customerTokenSecured, function (req, res) {
+      res.status(200).json(req.user || {});
+    });
+    app.get("/allowOnlyCustomerOrBackoffice", auth.tokenSecuredForAudiences(["betterez-app", "customer"]), function (req, res) {
       res.status(200).json(req.user || {});
     });
     fixtureLoader()
@@ -605,7 +609,6 @@ describe("Express integration", function () {
         });
     });
 
-
     it("should not check the token if body references another channel", function (done) {
       request(app)
         .post("/backoffice")
@@ -717,7 +720,6 @@ describe("Express integration", function () {
       });
 
       it("should not authorize if querystring requests channel=backoffice and token is for other-app", function (done) {
-        let validBackofficeTokenForOtherApp = jwt.sign({user: testFullUser, aud: "other-app"}, privateKey, tokenOptions);
         request(app)
           .get("/backoffice?channel=backoffice")
           .set("X-API-KEY", validKey)
@@ -816,6 +818,39 @@ describe("Express integration", function () {
           expect(customer.customerNumber).to.equal("111-222-333");
           done();
         });
+    });
+  });
+
+  describe("tokenSecuredForAudiences", () => {
+    function sendRequest(token, cb) {
+      request(app)
+        .get("/allowOnlyCustomerOrBackoffice")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${token}`)
+        .set("Accept", "application/json")
+        .end(cb);
+    }
+    it("should authorize for the internal app", function (done) {
+      sendRequest(validBackofficeToken, function (err, response) {
+        if (err) { return done(err); }
+        expect(JSON.parse(response.text).user).to.deep.equal(testFullUser);
+        done();
+      });
+    });
+    it("should authorize for a customer", function (done) {
+      sendRequest(validCustomerToken, function (err, response) {
+        if (err) { return done(err); }
+        expect(JSON.parse(response.text).customer.customerNumber).to.equal("111-222-333");
+        done();
+      });
+    });
+    it("should not authorize for other app", function (done) {
+      sendRequest(validBackofficeTokenForOtherApp, function (err, response) {
+        if (err) { return done(err); }
+        expect(response.status).to.equal(401);
+        expect(response.text).to.equal("Unauthorized");
+        done();
+      });
     });
   });
 });

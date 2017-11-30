@@ -183,6 +183,26 @@ module.exports = function (options) {
     return authenticateTokenMiddleware(req, res, next, {audience: "customer"});
   }
 
+  function tokenSecuredForAudiences (audiences) {
+    return function (req, res, next) {
+      return authenticateTokenMiddleware(req, res, function (err) {
+        if (err) {
+          return next(err);
+        }
+        if (isTestToken(getToken(req))) {
+          return next();
+        }
+        const notAuthenticated = !req.user,
+          wrongAudience = audiences.indexOf(req.user.aud) === -1;
+        if (notAuthenticated || wrongAudience) {
+          return res.status(401).send("Unauthorized");
+        } else {
+          return next();
+        }
+      });
+    };
+  }
+
   return {
     initialize: function (passportInitOptions) {
       return passport.initialize(passportInitOptions);
@@ -192,6 +212,7 @@ module.exports = function (options) {
     },
     tokenSecured: tokenSecured,
     tokenSecuredForBackoffice: tokenSecuredForBackoffice,
+    tokenSecuredForAudiences: tokenSecuredForAudiences,
     customerTokenSecured: customerTokenSecured
   };
 };
