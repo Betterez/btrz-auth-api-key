@@ -4,7 +4,7 @@
   "description": "Betterez api authorization library",
   "main": "index.js",
   "scripts": {
-    "test": "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- --ui bdd -t 5000",
+    "test": "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- --ui bdd -t 5000 --exit",
     "test-w": "node_modules/mocha/bin/mocha -w",
     "publish": "publish"
   },
