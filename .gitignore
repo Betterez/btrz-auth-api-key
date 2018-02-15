@@ -11,3 +11,6 @@ releaseNotes.txt
 /test-results
 
 node_modules
+
+# IDE settings
+.idea
