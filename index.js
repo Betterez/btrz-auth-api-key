@@ -1,6 +1,13 @@
 "use strict";
 
+const assert = require("assert"),
+  constants = require("./constants");
+
 module.exports = function (options) {
+
+  assert(options.internalAuthTokenSigningSecrets, "you must provide 'internalAuthTokenSigningSecrets'");
+  assert(options.internalAuthTokenSigningSecrets.main, "you must provide 'internalAuthTokenSigningSecrets.main'");
+  assert(options.internalAuthTokenSigningSecrets.secondary, "you must provide 'internalAuthTokenSigningSecrets.secondary'");
 
   let ignoredRoutes = options.ignoredRoutes && Array.isArray(options.ignoredRoutes) ? options.ignoredRoutes : [];
   let strategyOptions = {
@@ -109,11 +116,17 @@ module.exports = function (options) {
     if (!req.account || !req.account.privateKey || !req.headers.authorization) {
       return res.status(401).send("Unauthorized");
     }
-    let token = getToken(req);
-    let tokenVerifyOptions = {
+
+    const token = getToken(req);
+    let isInternalToken = false;
+
+    const decodedToken = jwt.decode(token, {complete: true});
+    console.log(decodedToken);
+
+    const tokenVerifyOptions = {
         algorithms: ["HS512"],
         subject: "account_user_sign_in",
-        issuer: "btrz-api-accounts",
+        issuer: constants.USER_AUTH_TOKEN_ISSUER,
     };
     if (options) {
       if (options.audience) {
