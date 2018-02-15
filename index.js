@@ -144,6 +144,8 @@ module.exports = function (options) {
         issuer: constants.INTERNAL_AUTH_TOKEN_ISSUER,
       };
 
+    let tokenPayload = null;
+
     if (isTestToken(token)) {
       req.user = getTestUser(token);
       return next();
@@ -170,7 +172,7 @@ module.exports = function (options) {
         if (verified) return;
 
         try {
-          jwt.verify(token, secret, internalTokenVerifyOptions);
+          tokenPayload = jwt.verify(token, secret, internalTokenVerifyOptions);
           verified = true;
         } catch (err) {
           // Swallow errors
@@ -183,7 +185,7 @@ module.exports = function (options) {
         return findUserById(req.account.userId)
           .then((user) => {
             Reflect.deleteProperty(user, "password");
-            req.user = user;
+            req.user = Object.assign({}, user, tokenPayload);
             return next();
           })
           .catch((err) => {
@@ -193,7 +195,7 @@ module.exports = function (options) {
     } else {
       // Validate a user-provided token
       try {
-        const tokenPayload = jwt.verify(token, req.account.privateKey, userTokenVerifyOptions);
+        tokenPayload = jwt.verify(token, req.account.privateKey, userTokenVerifyOptions);
         req.user = tokenPayload;
         return next();
       } catch (err) {
