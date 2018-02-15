@@ -38,7 +38,7 @@ module.exports = function (options) {
     return null;
   }
 
-  function useTestToken(token) {
+  function getTestUser(token) {
     if (isTestToken(token)) {
       if (options.testUser) {
         return options.testUser;
@@ -50,7 +50,7 @@ module.exports = function (options) {
   }
 
   function isTestToken (token) {
-    return (token === options.testToken);
+    return (token && token === options.testToken);
   }
 
   function isCorrectBackOfficeAudience(audience) {
@@ -144,6 +144,11 @@ module.exports = function (options) {
         issuer: constants.INTERNAL_AUTH_TOKEN_ISSUER,
       };
 
+    if (isTestToken(token)) {
+      req.user = getTestUser(token);
+      return next();
+    }
+
     if (options) {
       if (options.audience) {
         userTokenVerifyOptions.audience = options.audience;
@@ -188,7 +193,7 @@ module.exports = function (options) {
     } else {
       // Validate a user-provided token
       try {
-        let tokenPayload = useTestToken(token) || jwt.verify(token, req.account.privateKey, userTokenVerifyOptions);
+        const tokenPayload = jwt.verify(token, req.account.privateKey, userTokenVerifyOptions);
         req.user = tokenPayload;
         return next();
       } catch (err) {
