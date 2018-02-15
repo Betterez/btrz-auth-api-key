@@ -61,7 +61,11 @@ describe("Express integration", function () {
           "uris": [
             "127.0.0.1:27017"
           ]
-        }
+        },
+        internalAuthTokenSigningSecrets: {
+          main: "DjU58pDgsmtwWmk2H5sEzwzKFlA8ArO0IbWnkzdAHtSwIOW7fyd3rbj8OoVu5qhV",
+          secondary: "AnTpv1dfoHaeRnfM5TR6XttbbNJVJ4ZEdWHynF2Am7wVSW0Yi9a6va5NoO8AIPBT"
+        },
       };
     let auth = new Authenticator(options);
     app = express();

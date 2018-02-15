@@ -9,8 +9,9 @@ module.exports = function (options) {
   assert(options.internalAuthTokenSigningSecrets.main, "you must provide 'internalAuthTokenSigningSecrets.main'");
   assert(options.internalAuthTokenSigningSecrets.secondary, "you must provide 'internalAuthTokenSigningSecrets.secondary'");
 
-  let ignoredRoutes = options.ignoredRoutes && Array.isArray(options.ignoredRoutes) ? options.ignoredRoutes : [];
-  let strategyOptions = {
+  const internalAuthTokenSigningSecrets = options.internalAuthTokenSigningSecrets;
+  const ignoredRoutes = options.ignoredRoutes && Array.isArray(options.ignoredRoutes) ? options.ignoredRoutes : [];
+  const strategyOptions = {
     passReqToCallback: true,
     apiKeyHeader: options.authKeyFields && options.authKeyFields.header ? options.authKeyFields.header : "x-api-key",
     apiKeyField: options.authKeyFields && options.authKeyFields.request ? options.authKeyFields.request : "x-api-key"
@@ -18,7 +19,7 @@ module.exports = function (options) {
 
   // username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]][/[database][?options]]
 
-  let passport = require("passport"),
+  const passport = require("passport"),
     LocalStrategy = require("passport-localapikey-update").Strategy,
     SimpleDao = require("btrz-simple-dao").SimpleDao,
     simpleDao = new SimpleDao(options),
@@ -117,32 +118,64 @@ module.exports = function (options) {
       return res.status(401).send("Unauthorized");
     }
 
-    const token = getToken(req);
-    let isInternalToken = false;
-
-    const decodedToken = jwt.decode(token, {complete: true});
-    console.log(decodedToken);
-
-    const tokenVerifyOptions = {
+    const token = getToken(req),
+      decodedToken = jwt.decode(token),
+      userTokenVerifyOptions = {
         algorithms: ["HS512"],
         subject: "account_user_sign_in",
         issuer: constants.USER_AUTH_TOKEN_ISSUER,
-    };
+      },
+      internalTokenVerifyOptions = {
+        algorithms: ["HS512"],
+        issuer: constants.INTERNAL_AUTH_TOKEN_ISSUER,
+      };
+
     if (options) {
       if (options.audience) {
-        tokenVerifyOptions.audience = options.audience;
+        userTokenVerifyOptions.audience = options.audience;
       }
     }
 
-    try {
-      let tokenPayload = useTestToken(token) || jwt.verify(token, req.account.privateKey, tokenVerifyOptions);
-      req.user = tokenPayload;
-      next();
-    } catch (err) {
-      if (err.name === "TokenExpiredError" || err.name === "JsonWebTokenError") {
+    if (!decodedToken || !decodedToken.payload || !decodedToken.payload.iss) {
+      // Token is malformed or does not specify an issuer
+      return res.status(401).send("Unauthorized");
+    }
+
+    const isInternalToken = decodedToken.payload.iss === constants.INTERNAL_AUTH_TOKEN_ISSUER;
+
+    if (isInternalToken) {
+      // Validate a token for service-to-service communication
+      let verified = false;
+
+      [internalAuthTokenSigningSecrets.main, internalAuthTokenSigningSecrets.secondary].forEach((secret) => {
+        if (verified) return;
+
+        try {
+          jwt.verify(token, secret, internalTokenVerifyOptions);
+          verified = true;
+        } catch (err) {
+          // Swallow errors
+        }
+      });
+
+      if(!verified) {
         return res.status(401).send("Unauthorized");
+      } else {
+        req.user = {};
+        return next();
       }
-      return next(err);
+    } else {
+      // Validate a user-provided token
+      try {
+        let tokenPayload = useTestToken(token) || jwt.verify(token, req.account.privateKey, userTokenVerifyOptions);
+        req.user = tokenPayload;
+        return next();
+      } catch (err) {
+        if (err.name === "TokenExpiredError" || err.name === "JsonWebTokenError") {
+          return res.status(401).send("Unauthorized");
+        }
+        return next(err);
+      }
     }
   }
 
