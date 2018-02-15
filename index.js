@@ -136,12 +136,12 @@ module.exports = function (options) {
       }
     }
 
-    if (!decodedToken || !decodedToken.payload || !decodedToken.payload.iss) {
+    if (!decodedToken || !decodedToken.iss) {
       // Token is malformed or does not specify an issuer
       return res.status(401).send("Unauthorized");
     }
 
-    const isInternalToken = decodedToken.payload.iss === constants.INTERNAL_AUTH_TOKEN_ISSUER;
+    const isInternalToken = decodedToken.iss === constants.INTERNAL_AUTH_TOKEN_ISSUER;
 
     if (isInternalToken) {
       // Validate a token for service-to-service communication
