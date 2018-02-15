@@ -79,7 +79,7 @@ module.exports = function (options) {
 
     return simpleDao.connect()
       .then((db) => {
-        return db.collection(constants.DB_USER_COLLECTION_NAME).findOne({_id: simpleDao.objectId(userId)});
+        return db.collection(constants.DB_USER_COLLECTION_NAME).findOne({_id: simpleDao.objectId(userId), deleted: false});
       })
       .catch((err) => {
         return Promise.reject(err);
@@ -177,6 +177,7 @@ module.exports = function (options) {
       } else {
         return findUserById(req.account.userId)
           .then((user) => {
+            Reflect.deleteProperty(user, "password");
             req.user = user;
             return next();
           })
