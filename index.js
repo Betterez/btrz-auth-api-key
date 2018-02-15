@@ -73,6 +73,20 @@ module.exports = function (options) {
     return useTestKey(apikey) || useDb(apikey);
   }
 
+
+  function findUserById(userId) {
+    assert(typeof userId === "string", "userId must be a string");
+
+    return simpleDao.connect()
+      .then((db) => {
+        return db.collection(constants.DB_USER_COLLECTION_NAME).findOne({_id: simpleDao.objectId(userId)});
+      })
+      .catch((err) => {
+        return Promise.reject(err);
+      });
+  }
+
+
   function shouldIgnoreRoute(originalUrl, method) {
     return ignoredRoutes.some(function (ignoredRoute) {
       if (typeof ignoredRoute === "string") {
@@ -161,8 +175,14 @@ module.exports = function (options) {
       if(!verified) {
         return res.status(401).send("Unauthorized");
       } else {
-        req.user = {};
-        return next();
+        return findUserById(req.account.userId)
+          .then((user) => {
+            req.user = user;
+            return next();
+          })
+          .catch((err) => {
+            return next(err);
+          });
       }
     } else {
       // Validate a user-provided token
