@@ -19,18 +19,28 @@ describe("Express integration", function () {
     express = require("express"),
     bodyParser = require("body-parser"),
     jwt = require("jsonwebtoken"),
+    SimpleDao = require("btrz-simple-dao").SimpleDao,
+    constants = require("../constants"),
     Authenticator = require("../"),
     app,
     testKey = "test-api-key",
     validKey = "72ed8526-24a6-497f-8949-ec7ed6766aaf",
+    validKeyWithNoUser = "10967537-7ea4-46f3-a723-9822db056646",
     privateKey = "492a97f3-597f-4b54-84f5-f8ad3eb6ee36",
+    internalAuthTokenSigningSecrets = {
+      main: chance.hash(),
+      secondary: chance.hash()
+    },
     testUser = {_id: chance.hash(), name: "Test", last: "User"},
-    testFullUser = {_id: chance.hash(), name: "Test", last: "User", display: "Testing"},
-    tokenOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in"},
-    validToken = jwt.sign({user: testFullUser}, privateKey, tokenOptions),
-    validBackofficeToken = jwt.sign({user: testFullUser, aud: "betterez-app"}, privateKey, tokenOptions),
-    validBackofficeTokenForOtherApp = jwt.sign({user: testFullUser, aud: "other-app"}, privateKey, tokenOptions),
-    validCustomerToken = jwt.sign({customer: {_id: 1, customerNumber: "111-222-333"}, aud: "customer"}, privateKey, tokenOptions),
+    testFullUser = {_id: SimpleDao.objectId(), name: "Test", last: "User", display: "Testing", password: chance.hash(), deleted: false},
+    userTokenSigningOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in"},
+    internalTokenSigningOptions = {algorithm: "HS512", expiresIn: "2 minutes",
+      issuer: constants.INTERNAL_AUTH_TOKEN_ISSUER, audience: "betterez-app"},
+    validToken = jwt.sign({user: testFullUser}, privateKey, userTokenSigningOptions),
+    validBackofficeToken = jwt.sign({user: testFullUser, aud: "betterez-app"}, privateKey, userTokenSigningOptions),
+    validBackofficeTokenForOtherApp = jwt.sign({user: testFullUser, aud: "other-app"}, privateKey, userTokenSigningOptions),
+    validInternalToken = jwt.sign({}, internalAuthTokenSigningSecrets.main, internalTokenSigningOptions),
+    validCustomerToken = jwt.sign({customer: {_id: 1, customerNumber: "111-222-333"}, aud: "customer"}, privateKey, userTokenSigningOptions),
     testToken = "test-token",
     options;
 
@@ -62,10 +72,7 @@ describe("Express integration", function () {
             "127.0.0.1:27017"
           ]
         },
-        internalAuthTokenSigningSecrets: {
-          main: "DjU58pDgsmtwWmk2H5sEzwzKFlA8ArO0IbWnkzdAHtSwIOW7fyd3rbj8OoVu5qhV",
-          secondary: "AnTpv1dfoHaeRnfM5TR6XttbbNJVJ4ZEdWHynF2Am7wVSW0Yi9a6va5NoO8AIPBT"
-        },
+        internalAuthTokenSigningSecrets,
       };
     let auth = new Authenticator(options);
     app = express();
@@ -109,9 +116,15 @@ describe("Express integration", function () {
       res.status(200).json(req.user || {});
     });
     fixtureLoader()
-      .load({apikeys: [{accountId: chance.hash(), key: validKey, privateKey: privateKey}]}, function () {
-        done();
-      });
+      .load({
+          apikeys: [
+            {accountId: chance.hash(), key: validKey, privateKey: privateKey, userId: testFullUser._id.toString()},
+            {accountId: chance.hash(), key: validKeyWithNoUser, privateKey: chance.guid(), userId: SimpleDao.objectId().toString()}
+          ],
+          users: [testFullUser]
+        }, () => {
+          done();
+        });
   });
 
   after(function (done) {
@@ -366,7 +379,7 @@ describe("Express integration", function () {
       });
   });
 
-  it("should authenticate with token and set the payload on request.user", function (done) {
+  it("should authenticate with token and set req.user to the token payload", function (done) {
     request(app)
       .get("/secured")
       .set("X-API-KEY", validKey)
@@ -378,9 +391,95 @@ describe("Express integration", function () {
           return done(err);
         }
         let user = JSON.parse(response.text).user;
-        expect(user).to.deep.equal(testFullUser);
+        expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
         done();
       });
+  });
+
+  it("should not authenticate when the token issuer is not specified", () => {
+    const tokenSigningOptions = Object.assign({}, userTokenSigningOptions, {issuer: undefined}),
+      tokenWithNoIssuer = jwt.sign({user: testFullUser}, privateKey, tokenSigningOptions);
+
+    return request(app)
+      .get("/secured")
+      .set("X-API-KEY", validKey)
+      .set("Authorization", `Bearer ${tokenWithNoIssuer}`)
+      .set("Accept", "application/json")
+      .expect(401);
+  });
+
+  it("should not authenticate when the token is malformed", () => {
+    const malformedToken = chance.hash();
+
+    return request(app)
+      .get("/secured")
+      .set("X-API-KEY", validKey)
+      .set("Authorization", `Bearer ${malformedToken}`)
+      .set("Accept", "application/json")
+      .expect(401);
+  });
+
+  context("internal auth tokens", () => {
+    it("should authenticate with an api key and internal token", () => {
+      return request(app)
+        .get("/secured")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validInternalToken}`)
+        .set("Accept", "application/json")
+        .expect(200);
+    });
+
+    it("should authenticate with an api key and internal token signed with the secondary signing secret", () => {
+      const anotherValidInternalToken = jwt.sign({}, internalAuthTokenSigningSecrets.secondary, internalTokenSigningOptions);
+
+      return request(app)
+        .get("/secured")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${anotherValidInternalToken}`)
+        .set("Accept", "application/json")
+        .expect(200);
+    });
+
+    it("should authenticate with an internal token, fetch the user from the database, " +
+      "and assign properties of the user to req.user (excluding their hashed password)", () => {
+      return request(app)
+        .get("/secured")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validInternalToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .expect(({body}) => {
+          const expectedUserProperties = Object.keys(testFullUser).filter((prop) => prop !== "password");
+          expectedUserProperties.forEach((prop) => {
+            expect(body[prop]).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()})[prop]);
+          });
+        });
+    });
+
+    it("should authenticate with an internal token and assign properties of the token payload to req.user ", () => {
+      return request(app)
+        .get("/secured")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validInternalToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .expect(({body}) => {
+          const tokenPayload = jwt.decode(validInternalToken),
+            expectedTokenProperties = Object.keys(tokenPayload);
+          expectedTokenProperties.forEach((prop) => {
+            expect(body[prop]).to.deep.equal(tokenPayload[prop]);
+          });
+        });
+    });
+
+    it("should require that the user exists in the database", () => {
+      return request(app)
+        .get("/secured")
+        .set("X-API-KEY", validKeyWithNoUser)
+        .set("Authorization", `Bearer ${validInternalToken}`)
+        .set("Accept", "application/json")
+        .expect(500); // Database is inconsistent and needs developer attention
+    });
   });
 
   describe("tokenSecuredForBackoffice middleware", function () {
@@ -491,7 +590,7 @@ describe("Express integration", function () {
             return done(err);
           }
           let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(testFullUser);
+          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
           done();
         });
     });
@@ -508,7 +607,7 @@ describe("Express integration", function () {
             return done(err);
           }
           let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(testFullUser);
+          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
           done();
         });
     });
@@ -525,7 +624,7 @@ describe("Express integration", function () {
             return done(err);
           }
           let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(testFullUser);
+          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
           done();
         });
     });
@@ -542,7 +641,7 @@ describe("Express integration", function () {
             return done(err);
           }
           let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(testFullUser);
+          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
           done();
         });
     });
@@ -644,7 +743,7 @@ describe("Express integration", function () {
             return done(err);
           }
           let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(testFullUser);
+          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
           done();
         });
     });
@@ -662,7 +761,7 @@ describe("Express integration", function () {
             return done(err);
           }
           let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(testFullUser);
+          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
           done();
         });
     });
@@ -680,7 +779,7 @@ describe("Express integration", function () {
             return done(err);
           }
           let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(testFullUser);
+          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
           done();
         });
     });
@@ -739,7 +838,8 @@ describe("Express integration", function () {
       });
 
       it("should authorize if querystring requests channel=backoffice and token is for btrz-mobile-scanner", function (done) {
-        let validBackofficeTokenForMobileApp = jwt.sign({user: testFullUser, aud: "btrz-mobile-scanner"}, privateKey, tokenOptions);
+        let validBackofficeTokenForMobileApp = jwt.sign({user: testFullUser, aud: "btrz-mobile-scanner"},
+          privateKey, userTokenSigningOptions);
         request(app)
           .get("/backoffice?channel=backoffice")
           .set("X-API-KEY", validKey)
@@ -751,13 +851,13 @@ describe("Express integration", function () {
               return done(err);
             }
             let user = JSON.parse(response.text).user;
-            expect(user).to.deep.equal(testFullUser);
+            expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
             done();
           });
       });
 
       it("should authorize if querystring requests channel=backoffice and token is for betterez-app", function (done) {
-        let validBackofficeTokenForBetterezApp = jwt.sign({user: testFullUser, aud: "betterez-app"}, privateKey, tokenOptions);
+        let validBackofficeTokenForBetterezApp = jwt.sign({user: testFullUser, aud: "betterez-app"}, privateKey, userTokenSigningOptions);
         request(app)
           .get("/backoffice?channel=backoffice")
           .set("X-API-KEY", validKey)
@@ -769,7 +869,7 @@ describe("Express integration", function () {
               return done(err);
             }
             let user = JSON.parse(response.text).user;
-            expect(user).to.deep.equal(testFullUser);
+            expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
             done();
           });
       });
@@ -837,7 +937,7 @@ describe("Express integration", function () {
     it("should authorize for the internal app", function (done) {
       sendRequest(validBackofficeToken, function (err, response) {
         if (err) { return done(err); }
-        expect(JSON.parse(response.text).user).to.deep.equal(testFullUser);
+        expect(JSON.parse(response.text).user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
         done();
       });
     });

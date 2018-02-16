@@ -80,9 +80,6 @@ module.exports = function (options) {
     return simpleDao.connect()
       .then((db) => {
         return db.collection(constants.DB_USER_COLLECTION_NAME).findOne({_id: simpleDao.objectId(userId), deleted: false});
-      })
-      .catch((err) => {
-        return Promise.reject(err);
       });
   }
 
@@ -184,6 +181,10 @@ module.exports = function (options) {
       } else {
         return findUserById(req.account.userId)
           .then((user) => {
+            // This should not happen: the application record / api key references a userId that does not exist or has been deleted.
+            // Modify the source data.
+            assert(user, `unable to find user with id ${req.account.userId}`);
+
             Reflect.deleteProperty(user, "password");
             req.user = Object.assign({}, user, tokenPayload);
             return next();
