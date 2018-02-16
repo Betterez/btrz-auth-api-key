@@ -1,7 +1,8 @@
 "use strict";
 
 const assert = require("assert"),
-  constants = require("./constants");
+  constants = require("./constants"),
+  InternalAuthTokenProvider = require("./internalAuthTokenProvider");
 
 module.exports = function (options) {
 
@@ -288,6 +289,7 @@ module.exports = function (options) {
     tokenSecured: tokenSecured,
     tokenSecuredForBackoffice: tokenSecuredForBackoffice,
     tokenSecuredForAudiences: tokenSecuredForAudiences,
-    customerTokenSecured: customerTokenSecured
+    customerTokenSecured: customerTokenSecured,
+    internalAuthTokenProvider: new InternalAuthTokenProvider(options)
   };
 };

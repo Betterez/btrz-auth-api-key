@@ -16,6 +16,7 @@ describe("Express integration", function () {
     expect = require("chai").expect,
     Chance = require("chance").Chance,
     chance = new Chance(),
+    MockDate = require("mockdate"),
     express = require("express"),
     bodyParser = require("body-parser"),
     jwt = require("jsonwebtoken"),
@@ -31,6 +32,7 @@ describe("Express integration", function () {
       main: chance.hash(),
       secondary: chance.hash()
     },
+    internalAuthTokenProvider = null,
     testUser = {_id: chance.hash(), name: "Test", last: "User"},
     testFullUser = {_id: SimpleDao.objectId(), name: "Test", last: "User", display: "Testing", password: chance.hash(), deleted: false},
     userTokenSigningOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in"},
@@ -75,6 +77,7 @@ describe("Express integration", function () {
         internalAuthTokenSigningSecrets,
       };
     let auth = new Authenticator(options);
+    internalAuthTokenProvider = auth.internalAuthTokenProvider;
     app = express();
     app.use(auth.initialize({userProperty: "account"}));
     app.use(auth.authenticate());
@@ -129,6 +132,10 @@ describe("Express integration", function () {
 
   after(function (done) {
     fixtureLoader().clear(done);
+  });
+
+  afterEach(() => {
+    MockDate.reset();
   });
 
   it("should return 200 ok if no X-API-KEY is present but route should not be secured", function (done) {
@@ -955,6 +962,36 @@ describe("Express integration", function () {
         expect(response.text).to.equal("Unauthorized");
         done();
       });
+    });
+  });
+
+  describe("internalAuthTokenProvider", () => {
+    it("should generate an auth token that is accepted by token-secured endpoints", () => {
+      const internalToken = internalAuthTokenProvider.getToken();
+
+      return request(app)
+        .get("/secured")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${internalToken}`)
+        .set("Accept", "application/json")
+        .expect(200);
+    });
+
+    it("should cache the generated token for a period of time", () => {
+      const currentTimestamp = new Date().getTime(),
+        futureTimestamp = currentTimestamp + 61000, // One minute and one second
+        internalToken1 = internalAuthTokenProvider.getToken();
+      expect(internalToken1).to.exist;
+
+      // Confirm that the first token is cached
+      const internalToken2 = internalAuthTokenProvider.getToken();
+      expect(internalToken2).to.equal(internalToken1);
+
+      // Confirm that a new token will be generated after some time has elapsed
+      MockDate.set(futureTimestamp);
+      const internalToken3 = internalAuthTokenProvider.getToken();
+      expect(internalToken3).to.exist;
+      expect(internalToken3).to.not.equal(internalToken2);
     });
   });
 });

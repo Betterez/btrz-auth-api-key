@@ -30,12 +30,13 @@
     "passport-localapikey-update": "^0.5.0"
   },
   "devDependencies": {
+    "body-parser": "latest",
     "chai": "latest",
     "chance": "latest",
-    "body-parser": "latest",
     "express": "latest",
     "istanbul": "^0.4.1",
     "mocha": "latest",
+    "mockdate": "2.0.2",
     "pow-mongodb-fixtures": "latest",
     "publish": "^0.5.0",
     "supertest": "latest"
