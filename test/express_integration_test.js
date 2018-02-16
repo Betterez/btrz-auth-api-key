@@ -22,7 +22,7 @@ describe("Express integration", function () {
     jwt = require("jsonwebtoken"),
     SimpleDao = require("btrz-simple-dao").SimpleDao,
     constants = require("../constants"),
-    Authenticator = require("../"),
+    {Authenticator, InternalAuthTokenProvider} = require("../"),
     app,
     testKey = "test-api-key",
     validKey = "72ed8526-24a6-497f-8949-ec7ed6766aaf",
@@ -77,7 +77,7 @@ describe("Express integration", function () {
         internalAuthTokenSigningSecrets,
       };
     let auth = new Authenticator(options);
-    internalAuthTokenProvider = auth.internalAuthTokenProvider;
+    internalAuthTokenProvider = new InternalAuthTokenProvider(options);
     app = express();
     app.use(auth.initialize({userProperty: "account"}));
     app.use(auth.authenticate());

@@ -4,7 +4,7 @@ const assert = require("assert"),
   constants = require("./constants"),
   InternalAuthTokenProvider = require("./internalAuthTokenProvider");
 
-module.exports = function (options) {
+function Authenticator(options) {
 
   assert(options.internalAuthTokenSigningSecrets, "you must provide 'internalAuthTokenSigningSecrets'");
   assert(options.internalAuthTokenSigningSecrets.main, "you must provide 'internalAuthTokenSigningSecrets.main'");
@@ -289,7 +289,11 @@ module.exports = function (options) {
     tokenSecured: tokenSecured,
     tokenSecuredForBackoffice: tokenSecuredForBackoffice,
     tokenSecuredForAudiences: tokenSecuredForAudiences,
-    customerTokenSecured: customerTokenSecured,
-    internalAuthTokenProvider: new InternalAuthTokenProvider(options)
+    customerTokenSecured: customerTokenSecured
   };
+};
+
+module.exports = {
+  Authenticator,
+  InternalAuthTokenProvider
 };
