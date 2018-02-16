@@ -88,11 +88,6 @@ _Notice that this is a different options object than the one passed to passport.
     internalAuthTokenSigningSecrets: {
         main: "<some_secret_string>"
         secondary: "<some_other_secret_string>"
-    },
-    internalAuthTokenProvider: { 
-        getToken() { 
-            //function returning an auth token suitable for service-to-service calls 
-        } 
     }
     
 
@@ -133,20 +128,6 @@ The `collection.name` and `collection.property` will be used to try to find one 
 #### internalAuthTokenSigningSecrets
 
 The secret keys that are used to sign the auth tokens used for internal service-to-service calls.  Two keys are provided, to allow for key rotation.
-
-#### internalAuthTokenProvider
-
-An object containing one function taking no arguments: `getToken()`, which generates an auth token suitable for service-to-service calls.  The module contains an InternalAuthTokenProvider class for this purpose:
-    
-    const InternalAuthTokenProvider = require("btrz-auth-api-key").InternalAuthTokenProvider,
-        options = {
-            internalAuthTokenSigningSecrets: {
-                main: "TnrRb2IadihO"
-            }
-        };
-        
-    const internalAuthTokenProvider = new InternalAuthTokenProvider(options);
-    // This instance can now be provided in the options to `new Authenticator(options)`
 
 #### auth.tokenSecured
 
