@@ -22,8 +22,8 @@ When creating a new API service you should include this module.
 
 On your index.js file when creating your application service, hook this package into the middleware:
 
-    let Authenticator = require("btrz-auth-api-key"),
-      options: {
+    const Authenticator = require("btrz-auth-api-key").Authenticator,
+      options = {
         db: {
             "options": {
                 "database": "betterez_core",
@@ -34,9 +34,14 @@ On your index.js file when creating your application service, hook this package 
                 "127.0.0.1:27017"
               ]
             }, 
-        collection: "apikeys"
+        collection: "apikeys",
+        internalAuthTokenSigningSecrets: {
+            main: "TnrRb2IadihO"
+            secondary: "HuFDeLoriVp3"
+        }
     };
-    let auth = new Authenticator(options);
+    
+    const auth = new Authenticator(options);
     app = express();
     app.use(auth.initialize());
     app.use(auth.authenticate());
@@ -79,7 +84,17 @@ _Notice that this is a different options object than the one passed to passport.
         uris: [
             "address:port"
         ]
+    },
+    internalAuthTokenSigningSecrets: {
+        main: "<some_secret_string>"
+        secondary: "<some_other_secret_string>"
+    },
+    internalAuthTokenProvider: { 
+        getToken() { 
+            //function returning an auth token suitable for service-to-service calls 
+        } 
     }
+    
 
 #### testKey
 
@@ -115,6 +130,23 @@ The db options and uris array will be used to connect to the MongoDb (single ser
 
 The `collection.name` and `collection.property` will be used to try to find one record that contains the value provided on X-API-KEY to the service.
 
+#### internalAuthTokenSigningSecrets
+
+The secret keys that are used to sign the auth tokens used for internal service-to-service calls.  Two keys are provided, to allow for key rotation.
+
+#### internalAuthTokenProvider
+
+An object containing one function taking no arguments: `getToken()`, which generates an auth token suitable for service-to-service calls.  The module contains an InternalAuthTokenProvider class for this purpose:
+    
+    const InternalAuthTokenProvider = require("btrz-auth-api-key").InternalAuthTokenProvider,
+        options = {
+            internalAuthTokenSigningSecrets: {
+                main: "TnrRb2IadihO"
+            }
+        };
+        
+    const internalAuthTokenProvider = new InternalAuthTokenProvider(options);
+    // This instance can now be provided in the options to `new Authenticator(options)`
 
 #### auth.tokenSecured
 
