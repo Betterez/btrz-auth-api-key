@@ -77,7 +77,9 @@ function Authenticator(options, logger) {
 
 
   function findUserById(userId) {
-    assert(typeof userId === "string", "userId must be a string");
+    if(typeof userId !== "string") {
+      return Promise.reject(new Error("userId must be a string"));
+    }
 
     return simpleDao.connect()
       .then((db) => {
