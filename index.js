@@ -4,8 +4,9 @@ const assert = require("assert"),
   constants = require("./constants"),
   InternalAuthTokenProvider = require("./internalAuthTokenProvider");
 
-function Authenticator(options) {
+function Authenticator(options, logger) {
 
+  assert(logger && logger.info && logger.error, "you must provide a logger");
   assert(options.internalAuthTokenSigningSecrets, "you must provide 'internalAuthTokenSigningSecrets'");
   assert(options.internalAuthTokenSigningSecrets.main, "you must provide 'internalAuthTokenSigningSecrets.main'");
   assert(options.internalAuthTokenSigningSecrets.secondary, "you must provide 'internalAuthTokenSigningSecrets.secondary'");
@@ -125,8 +126,14 @@ function Authenticator(options) {
     return req.headers.authorization.replace(/^Bearer /, "");
   }
 
-  function authenticateTokenMiddleware (req, res, next, options) {
-    if (!req.account || !req.account.privateKey || !req.headers.authorization) {
+  function authenticateTokenMiddleware (req, res, next, options = {}) {
+    const {audience} = options;
+
+    if (!req.account || !req.account.privateKey) {
+      logger.error("authenticateTokenMiddleware: No account or account has no private key");
+      return res.status(401).send("Unauthorized");
+    } else if (!req.headers.authorization) {
+      logger.info("authenticateTokenMiddleware: Request is missing 'authorization' header");
       return res.status(401).send("Unauthorized");
     }
 
@@ -149,14 +156,15 @@ function Authenticator(options) {
       return next();
     }
 
-    if (options) {
-      if (options.audience) {
-        userTokenVerifyOptions.audience = options.audience;
-      }
+    if (audience) {
+      userTokenVerifyOptions.audience = audience;
     }
 
-    if (!decodedToken || !decodedToken.iss) {
-      // Token is malformed or does not specify an issuer
+    if (!decodedToken) {
+      logger.error("authenticateTokenMiddleware: Token is malformed");
+      return res.status(401).send("Unauthorized");
+    } else if (!decodedToken.iss) {
+      logger.error("authenticateTokenMiddleware: Token does not specify its issuer");
       return res.status(401).send("Unauthorized");
     }
 
@@ -166,18 +174,22 @@ function Authenticator(options) {
       // Validate a token for service-to-service communication
       let verified = false;
 
-      [internalAuthTokenSigningSecrets.main, internalAuthTokenSigningSecrets.secondary].forEach((secret) => {
+      [internalAuthTokenSigningSecrets.main, internalAuthTokenSigningSecrets.secondary].forEach((secret, index) => {
         if (verified) return;
 
         try {
           tokenPayload = jwt.verify(token, secret, internalTokenVerifyOptions);
           verified = true;
         } catch (err) {
-          // Swallow errors
+          // Log and swallow errors
+          const signingKeyName = index === 0 ? "main" : "secondary";
+          // failing to validate the token against one of the signing keys is expected behaviour when a key rotation is in progress
+          logger.info(`authenticateTokenMiddleware: Failed to validate internal auth token using ${signingKeyName} signing key`, err);
         }
       });
 
-      if(!verified) {
+      if (!verified) {
+        logger.error("authenticateTokenMiddleware: Failed to validate internal auth token using any signing key");
         return res.status(401).send("Unauthorized");
       } else {
         return findUserById(req.account.userId)
@@ -191,7 +203,8 @@ function Authenticator(options) {
             return next();
           })
           .catch((err) => {
-            return next(err);
+            logger.error(`authenticateTokenMiddleware: Error occurred finding user with id ${req.account.userId}`, err);
+            return res.status(401).send("Unauthorized");
           });
       }
     } else {
@@ -202,9 +215,12 @@ function Authenticator(options) {
         return next();
       } catch (err) {
         if (err.name === "TokenExpiredError" || err.name === "JsonWebTokenError") {
+          logger.info(`authenticateTokenMiddleware: Token expired or 'JsonWebTokenError' occurred`, err);
           return res.status(401).send("Unauthorized");
         }
-        return next(err);
+
+        logger.error(`authenticateTokenMiddleware: Unexpected error occurred validating user token`, err);
+        return res.status(401).send("Unauthorized");
       }
     }
   }

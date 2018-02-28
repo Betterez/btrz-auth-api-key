@@ -21,6 +21,7 @@ describe("Express integration", function () {
     bodyParser = require("body-parser"),
     jwt = require("jsonwebtoken"),
     SimpleDao = require("btrz-simple-dao").SimpleDao,
+    mockLogger = {info() {}, error() {}},
     constants = require("../constants"),
     {Authenticator, InternalAuthTokenProvider} = require("../"),
     app,
@@ -76,7 +77,7 @@ describe("Express integration", function () {
         },
         internalAuthTokenSigningSecrets,
       };
-    let auth = new Authenticator(options);
+    let auth = new Authenticator(options, mockLogger);
     internalAuthTokenProvider = new InternalAuthTokenProvider(options);
     app = express();
     app.use(auth.initialize({userProperty: "account"}));
@@ -485,7 +486,7 @@ describe("Express integration", function () {
         .set("X-API-KEY", validKeyWithNoUser)
         .set("Authorization", `Bearer ${validInternalToken}`)
         .set("Accept", "application/json")
-        .expect(500); // Database is inconsistent and needs developer attention
+        .expect(401);
     });
   });
 
