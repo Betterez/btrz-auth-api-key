@@ -22,26 +22,29 @@ When creating a new API service you should include this module.
 
 On your index.js file when creating your application service, hook this package into the middleware:
 
-    const Authenticator = require("btrz-auth-api-key").Authenticator,
+    const Logger = require("btrz-logger").Logger,
+      logger = new Logger(),
+      Authenticator = require("btrz-auth-api-key").Authenticator,
       options = {
         db: {
-            "options": {
-                "database": "betterez_core",
-                "username": "",
-                "password": ""
-              },
-              "uris": [
-                "127.0.0.1:27017"
-              ]
-            }, 
+          "options": {
+              "database": "betterez_core",
+              "username": "",
+              "password": ""
+          },
+          "uris": [
+            "127.0.0.1:27017"
+          ]
+        }, 
         collection: "apikeys",
         internalAuthTokenSigningSecrets: {
-            main: "TnrRb2IadihO"
-            secondary: "HuFDeLoriVp3"
+          main: "TnrRb2IadihO"
+          secondary: "HuFDeLoriVp3"
         }
-    };
+      };
     
-    const auth = new Authenticator(options);
+    const auth = new Authenticator(options, logger);
+    
     app = express();
     app.use(auth.initialize());
     app.use(auth.authenticate());
