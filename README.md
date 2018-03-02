@@ -152,3 +152,28 @@ In this example, the route will be valid for customers or backoffice users:
     app.get("/secured", auth.tokenSecuredForAudiences(["betterez-app", "customer"]), function (req, res) {
         ...
     });
+
+### Authenticating Internal service-to-service calls
+
+The authentication middleware supports secure calls between services using a special "internal" JWT token.  This is useful in cases where one services needs to access a secure endpoint belonging to another service, and you do not have a JWT token provided by the user.
+
+The service performing the internal request will generate an "internal" JWT token using the `InternalAuthTokenProvider` class provided by this module.  You must supply a "main" secret signing key to the `InternalAuthTokenProvider`; this will be used to sign the generated JWT token.  This signing key is a secret, and it should never be committed to the codebase: fetch the value at runtime.
+
+When a service receives a request with an authorization token, the authentication middleware will look at the token `issuer` to determine whether it is a __user-provided__ or __internal__ token.  If an internal token is detected, the authentication middleware will attempt to verify the token signature using both the "main" and "secondary" secret signing keys.  If the token signature is verified, the authentication middleware will fetch user information using the API key provided in the request's `x-api-key` header, and populate the `req.user` object for downstream code to use.
+
+For security reasons, internal authentication tokens are short-lived, and expire soon after they are created.  The `InternalAuthTokenProvider` regenerates the internal auth token periodically, and you should always ask it for a new token every time you make a service-to-service request.
+
+#### Key rotation
+
+Key rotation can be performed as follows:
+
+1. Change the value of the `secondary` signing key to some new random string (ie. using `pwgen -s 64 1`)
+2. Propagate this configuration change to all services (restart if required)
+3. Wait at least a number of minutes equal to the token expiration time
+4. Swap the value of the `main` and `secondary` signing keys
+5. Propagate this configuration change to all services (restart if required).
+6. Wait at least a number of minutes equal to the token expiration time.  After this period, all valid internal tokens are guaranteed to be signed using the new signing key.
+7. Change the value of the `secondary` signing key to some new random string
+8. Propagate this configuration change to all services (restart if required)
+
+At the end of this process, both the `main` and `secondary` signing keys have been changed, and there should have been no interruption of service.  Tokens that were signed using either one of the old signing keys will no longer be accepted by the authentication middleware.
