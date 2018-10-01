@@ -980,7 +980,7 @@ describe("Express integration", function () {
 
     it("should cache the generated token for a period of time", () => {
       const currentTimestamp = new Date().getTime(),
-        futureTimestamp = currentTimestamp + 61000, // One minute and one second
+        futureTimestamp = currentTimestamp + 60*12*1000 + 1000, // 12 hours and one second
         internalToken1 = internalAuthTokenProvider.getToken();
       expect(internalToken1).to.exist;
 

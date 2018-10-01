@@ -20,14 +20,14 @@ class InternalAuthTokenProvider {
    * @returns {String} the token
    */
   getToken() {
-    const tokenRefreshIntervalMs = 60000, // One minute
+    const tokenRefreshIntervalMs = 60*12*1000, // 12h
       currentTimestamp = new Date().getTime(),
       msSinceTokenGeneration = currentTimestamp - this._tokenGenerationTimestamp;
 
     if (msSinceTokenGeneration >= tokenRefreshIntervalMs) {
       const jwtOptions = {
           algorithm: "HS512",
-          expiresIn: "2 minutes",
+          expiresIn: "24h",
           issuer: constants.INTERNAL_AUTH_TOKEN_ISSUER,
           audience: "betterez-app",
         },
