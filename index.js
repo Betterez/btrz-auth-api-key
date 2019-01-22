@@ -64,7 +64,13 @@ function Authenticator(options, logger) {
     query[options.collection.property] =  apikey;
     return simpleDao.connect()
       .then((db) => {
-        return db.collection(options.collection.name).findOne(query);
+        return db.collection(options.collection.name).findOne(query)
+        .then(result => {
+          if(!result) {
+            logger.error("api-key not found");
+          }
+          return result;
+        });
       })
       .catch((err) => {
         return Promise.reject(err);
