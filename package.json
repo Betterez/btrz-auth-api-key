@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- --ui bdd -t 5000 --exit",
-    "test-w": "node_modules/mocha/bin/mocha -w",
-    "publish": "publish"
+    "test-w": "node_modules/mocha/bin/mocha -w"
   },
   "repository": {
     "type": "git",
@@ -38,7 +37,6 @@
     "mocha": "latest",
     "mockdate": "2.0.2",
     "pow-mongodb-fixtures": "latest",
-    "publish": "^0.5.0",
     "supertest": "latest"
   }
 }
