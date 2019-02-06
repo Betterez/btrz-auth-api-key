@@ -59,6 +59,7 @@ describe("Express integration", function () {
         "^/api-docs",
         "^/ignoredsecure",
         "^/say-no$",
+        "^/route/with/only/internal/token",
         {route: "^/ignored-get-put", methods: ["GET", "PUT"]}
       ],
       "collection": {
@@ -114,6 +115,9 @@ describe("Express integration", function () {
       res.status(200).json(req.user || {message: "no token"});
     });
     app.get("/customer", auth.customerTokenSecured, function (req, res) {
+      res.status(200).json(req.user || {});
+    });
+    app.get("/route/with/only/internal/token", auth.tokenSecuredWithoutAccount, function (req, res) {
       res.status(200).json(req.user || {});
     });
     app.get("/allowOnlyCustomerOrBackoffice", auth.tokenSecuredForAudiences(["betterez-app", "customer"]), function (req, res) {
@@ -485,6 +489,29 @@ describe("Express integration", function () {
         .get("/secured")
         .set("X-API-KEY", validKeyWithNoUser)
         .set("Authorization", `Bearer ${validInternalToken}`)
+        .set("Accept", "application/json")
+        .expect(401);
+    });
+
+    it("should authenticate with an internal token", () => {
+      return request(app)
+        .get("/route/with/only/internal/token")
+        .set("Authorization", `Bearer ${validInternalToken}`)
+        .set("Accept", "application/json")
+        .expect(200);
+    });
+
+    it("should return unauthorized if internal token is not given", () => {
+      return request(app)
+        .get("/route/with/only/internal/token")
+        .set("Accept", "application/json")
+        .expect(401);
+    });
+
+    it("should return unauthorized if internal token is not valid", () => {
+      return request(app)
+        .get("/route/with/only/internal/token")
+        .set("Authorization", "Bearer not_valid_token")
         .set("Accept", "application/json")
         .expect(401);
     });

@@ -142,6 +142,16 @@ Usage:
         ...
     });
 
+#### auth.tokenSecuredWithoutAccount
+
+This middleware, when used on a route definition, validates the request includes an internal Bearer Token that is a valid JSON Web Token as issued by the authorization endpoint on btrz-api-client.
+
+Usage:
+
+    app.get("/secured", auth.tokenSecuredWithoutAccount, function (req, res) {
+        ...
+    });
+
 
 #### auth.tokenSecuredForAudiences
 

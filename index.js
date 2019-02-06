@@ -134,10 +134,42 @@ function Authenticator(options, logger) {
     return req.headers.authorization.replace(/^Bearer /, "");
   }
 
-  function authenticateTokenMiddleware (req, res, next, options = {}) {
-    const {audience} = options;
+  function decodeToken(token) {
+    try {
+      return jwt.decode(token);
+    } catch (err) {
+      return null;
+    }
+  }
 
-    if (!req.account || !req.account.privateKey) {
+  function shouldValidateAccount(bypassAccount, req) {
+    return !bypassAccount && !(req.account && req.account.privateKey);
+  }
+
+  function verifyInternalToken(token, secrets) {
+
+    function verify(keyName, opts) {
+      try {
+        return jwt.verify(token, secrets[keyName], opts);
+      } catch (err) {
+        // failing to validate the token against one of the signing keys is expected behaviour when a key rotation is in progress
+        logger.info(`authenticateTokenMiddleware: Failed to validate internal auth token using ${keyName} signing key`, err);
+        return false;
+      }
+    }
+
+    const opts = {
+      algorithms: ["HS512"],
+      issuer: constants.INTERNAL_AUTH_TOKEN_ISSUER,
+    };
+
+    return verify("main", opts) || verify("secondary", opts);
+  }
+
+  function authenticateTokenMiddleware (req, res, next, options = {}) {
+    const {audience, bypassAccount = false} = options;
+
+    if (shouldValidateAccount(bypassAccount, req)) {
       logger.error("authenticateTokenMiddleware: No account or account has no private key");
       return res.status(401).send("Unauthorized");
     } else if (!req.headers.authorization) {
@@ -145,27 +177,12 @@ function Authenticator(options, logger) {
       return res.status(401).send("Unauthorized");
     }
 
-    const token = getToken(req),
-      decodedToken = jwt.decode(token),
-      userTokenVerifyOptions = {
-        algorithms: ["HS512"],
-        subject: "account_user_sign_in",
-        issuer: constants.USER_AUTH_TOKEN_ISSUER,
-      },
-      internalTokenVerifyOptions = {
-        algorithms: ["HS512"],
-        issuer: constants.INTERNAL_AUTH_TOKEN_ISSUER,
-      };
-
-    let tokenPayload = null;
+    const token = getToken(req);
+    const decodedToken = decodeToken(token);
 
     if (isTestToken(token)) {
       req.user = getTestUser(token);
       return next();
-    }
-
-    if (audience) {
-      userTokenVerifyOptions.audience = audience;
     }
 
     if (!decodedToken) {
@@ -179,47 +196,43 @@ function Authenticator(options, logger) {
     const isInternalToken = decodedToken.iss === constants.INTERNAL_AUTH_TOKEN_ISSUER;
 
     if (isInternalToken) {
-      // Validate a token for service-to-service communication
-      let verified = false;
+      const tokenPayload = verifyInternalToken(token, internalAuthTokenSigningSecrets);
 
-      [internalAuthTokenSigningSecrets.main, internalAuthTokenSigningSecrets.secondary].forEach((secret, index) => {
-        if (verified) return;
-
-        try {
-          tokenPayload = jwt.verify(token, secret, internalTokenVerifyOptions);
-          verified = true;
-        } catch (err) {
-          // Log and swallow errors
-          const signingKeyName = index === 0 ? "main" : "secondary";
-          // failing to validate the token against one of the signing keys is expected behaviour when a key rotation is in progress
-          logger.info(`authenticateTokenMiddleware: Failed to validate internal auth token using ${signingKeyName} signing key`, err);
-        }
-      });
-
-      if (!verified) {
+      if (!tokenPayload) {
         logger.error("authenticateTokenMiddleware: Failed to validate internal auth token using any signing key");
         return res.status(401).send("Unauthorized");
-      } else {
-        return findUserById(req.account.userId)
-          .then((user) => {
-            // This should not happen: the application record / api key references a userId that does not exist or has been deleted.
-            // Modify the source data.
-            assert(user, `unable to find user with id ${req.account.userId}`);
-
-            Reflect.deleteProperty(user, "password");
-            req.user = Object.assign({}, user, tokenPayload);
-            return next();
-          })
-          .catch((err) => {
-            logger.error(`authenticateTokenMiddleware: Error occurred finding user with id ${req.account.userId}`, err);
-            return res.status(401).send("Unauthorized");
-          });
       }
+      if (bypassAccount) {
+        return next();
+      }
+
+      return findUserById(req.account.userId)
+        .then((user) => {
+          // This should not happen: the application record / api key references a userId that does not exist or has been deleted.
+          // Modify the source data.
+          assert(user, `unable to find user with id ${req.account.userId}`);
+
+          Reflect.deleteProperty(user, "password");
+          req.user = Object.assign({}, user, tokenPayload);
+          return next();
+        })
+        .catch((err) => {
+          logger.error(`authenticateTokenMiddleware: Error occurred finding user with id ${req.account.userId}`, err);
+          return res.status(401).send("Unauthorized");
+        });
     } else {
       // Validate a user-provided token
       try {
-        tokenPayload = jwt.verify(token, req.account.privateKey, userTokenVerifyOptions);
-        req.user = tokenPayload;
+        const userTokenVerifyOptions = {
+          algorithms: ["HS512"],
+          subject: "account_user_sign_in",
+          issuer: constants.USER_AUTH_TOKEN_ISSUER,
+        };
+
+        if (audience) {
+          userTokenVerifyOptions.audience = audience;
+        }
+        req.user = jwt.verify(token, req.account.privateKey, userTokenVerifyOptions);
         return next();
       } catch (err) {
         if (err.name === "TokenExpiredError" || err.name === "JsonWebTokenError") {
@@ -283,6 +296,10 @@ function Authenticator(options, logger) {
     return authenticateTokenMiddleware(req, res, next, {audience: "customer"});
   }
 
+  function tokenSecuredWithoutAccount(req, res, next) {
+    return authenticateTokenMiddleware(req, res, next, {bypassAccount: true});
+  }
+
   function tokenSecuredForAudiences (audiences) {
     return function (req, res, next) {
       return authenticateTokenMiddleware(req, res, function (err) {
@@ -310,10 +327,11 @@ function Authenticator(options, logger) {
     authenticate: function () {
       return innerAuthenticateMiddleware;
     },
-    tokenSecured: tokenSecured,
-    tokenSecuredForBackoffice: tokenSecuredForBackoffice,
-    tokenSecuredForAudiences: tokenSecuredForAudiences,
-    customerTokenSecured: customerTokenSecured
+    tokenSecured,
+    tokenSecuredWithoutAccount,
+    tokenSecuredForBackoffice,
+    tokenSecuredForAudiences,
+    customerTokenSecured
   };
 };
 
