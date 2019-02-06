@@ -1,4 +1,4 @@
-# btrz-auth-api-key [![Build Status](https://secure.travis-ci.org/Betterez/btrz-auth-api-key.png?branch=master)](https://travis-ci.org/Betterez/btrz-auth-api-key) [![NPM version](https://badge-me.herokuapp.com/api/npm/btrz-auth-api-key.png)](http://badges.enytc.com/for/npm/btrz-auth-api-key)
+# btrz-auth-api-key
 
 This module handles api authentication using an x-api-key parameter, it uses passport with the passport-localapikey strategy.
 It will accept the parameter in the Header, QS or BODY.
