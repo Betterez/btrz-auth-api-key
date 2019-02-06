@@ -146,6 +146,8 @@ Usage:
 
 This middleware, when used on a route definition, validates the request includes an internal Bearer Token that is a valid JSON Web Token as issued by the authorization endpoint on btrz-api-client.
 
+With this middleware you can authenticate an internal token without using `x_api_key` adding the route to the `ignoredRoutes` list. The account and user data related to the `x_api_key` will be ignored, only validating the internal token.
+
 Usage:
 
     app.get("/secured", auth.tokenSecuredWithoutAccount, function (req, res) {
