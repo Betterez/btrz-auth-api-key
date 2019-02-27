@@ -116,8 +116,16 @@ function Authenticator(options, logger) {
   passport.use(new LocalStrategy(strategyOptions,
     function (req, apikey, done) {
       let onSuccess = function (result) {
+        const token = result && result.key;
+        const jwtToken = getAuthToken(req);
         req.application = result;
-        return done(null, result);
+        req.tokens = { token, jwtToken };
+        // done executes Passport login and fills req.user (or it's alias if userProperty is defined in root index.js)
+        done(null, result);
+
+        if (jwtToken) {
+          tokenProcess(req, jwtToken);
+        }
       };
       let onErr = function (err) { return done(err, null); };
 
@@ -128,8 +136,13 @@ function Authenticator(options, logger) {
     }
   ));
 
-  function getToken(req) {
-    return req.headers.authorization.replace(/^Bearer /, "");
+  function getAuthToken(req) {
+    const authorizationHeader = req.headers.authorization || "";
+    const jwtTokenRegExp = /Bearer (.*)/i;
+    const authHeaderIsValid = jwtTokenRegExp.test(authorizationHeader);
+    const jwtToken = authHeaderIsValid ? authorizationHeader.match(jwtTokenRegExp)[1] : null;
+
+    return jwtToken;
   }
 
   function decodeToken(token) {
@@ -165,7 +178,7 @@ function Authenticator(options, logger) {
   }
 
   function authenticateTokenMiddleware(req, res, next, options = {}) {
-    const {audience, bypassAccount = false} = options;
+    const {bypassAccount = false} = options;
 
     if (shouldValidateAccount(bypassAccount, req)) {
       logger.error("authenticateTokenMiddleware: No account or account has no private key");
@@ -175,73 +188,13 @@ function Authenticator(options, logger) {
       return res.status(401).send("Unauthorized");
     }
 
-    const token = getToken(req);
-    const decodedToken = decodeToken(token);
+    // at this point headers.authorization was already checked for existency
+    const jwtToken = getAuthToken(req);
 
-    if (isTestToken(token)) {
-      req.user = getTestUser(token);
-      return next();
-    }
-
-    if (!decodedToken) {
-      logger.error("authenticateTokenMiddleware: Token is malformed");
-      return res.status(401).send("Unauthorized");
-    } else if (!decodedToken.iss) {
-      logger.error("authenticateTokenMiddleware: Token does not specify its issuer");
-      return res.status(401).send("Unauthorized");
-    }
-
-    const isInternalToken = decodedToken.iss === constants.INTERNAL_AUTH_TOKEN_ISSUER;
-
-    if (isInternalToken) {
-      const tokenPayload = verifyInternalToken(token, internalAuthTokenSigningSecrets);
-
-      if (!tokenPayload) {
-        logger.error("authenticateTokenMiddleware: Failed to validate internal auth token using any signing key");
-        return res.status(401).send("Unauthorized");
-      }
-      if (bypassAccount) {
-        return next();
-      }
-
-      return findUserById(req.account.userId)
-        .then((user) => {
-          // This should not happen: the application record / api key references a userId that does not exist or has been deleted.
-          // Modify the source data.
-          assert(user, `unable to find user with id ${req.account.userId}`);
-
-          Reflect.deleteProperty(user, "password");
-          req.user = Object.assign({}, user, tokenPayload);
-          return next();
-        })
-        .catch((err) => {
-          logger.error(`authenticateTokenMiddleware: Error occurred finding user with id ${req.account.userId}`, err);
-          return res.status(401).send("Unauthorized");
-        });
-    } else {
-      // Validate a user-provided token
-      try {
-        const userTokenVerifyOptions = {
-          algorithms: ["HS512"],
-          subject: "account_user_sign_in",
-          issuer: constants.USER_AUTH_TOKEN_ISSUER,
-        };
-
-        if (audience) {
-          userTokenVerifyOptions.audience = audience;
-        }
-        req.user = jwt.verify(token, req.account.privateKey, userTokenVerifyOptions);
-        return next();
-      } catch (err) {
-        if (err.name === "TokenExpiredError" || err.name === "JsonWebTokenError") {
-          logger.info(`authenticateTokenMiddleware: Token expired or 'JsonWebTokenError' occurred`, err);
-          return res.status(401).send("Unauthorized");
-        }
-
-        logger.error(`authenticateTokenMiddleware: Unexpected error occurred validating user token`, err);
-        return res.status(401).send("Unauthorized");
-      }
-    }
+    // moving a the token process to a unified function
+    // which will also be used after the passport login happens
+    // but omitting res, next and options
+    processJwtToken(req, jwtToken, res, next, options);
   }
 
   function tokenSecured(req, res, next) {
@@ -276,7 +229,7 @@ function Authenticator(options, logger) {
         if (err) {
           return next(err);
         }
-        if (isTestToken(getToken(req))) {
+        if (isTestToken(getAuthToken(req))) {
           return next();
         }
         if (!req.user || !isCorrectBackOfficeAudience(req.user.aud)) {
@@ -304,7 +257,7 @@ function Authenticator(options, logger) {
         if (err) {
           return next(err);
         }
-        if (isTestToken(getToken(req))) {
+        if (isTestToken(getAuthToken(req))) {
           return next();
         }
         const notAuthenticated = !req.user,
@@ -316,6 +269,76 @@ function Authenticator(options, logger) {
         }
       });
     };
+  }
+
+  function processJwtToken(req, token, res = null, next = null, options = {}) {
+    const {audience = null, bypassAccount = false} = options;
+    const decodedToken = decodeToken(token);
+
+    if (isTestToken(token)) {
+      req.user = getTestUser(token);
+      return next ? next() : true;
+    }
+
+    if (!decodedToken) {
+      logger.error("authenticateTokenMiddleware: Token is malformed");
+      return res ? res.status(401).send("Unauthorized") : false;
+    } else if (!decodedToken.iss) {
+      logger.error("authenticateTokenMiddleware: Token does not specify its issuer");
+      return res ? res.status(401).send("Unauthorized") : false;
+    }
+
+    const isInternalToken = decodedToken.iss === constants.INTERNAL_AUTH_TOKEN_ISSUER;
+
+    if (isInternalToken) {
+      const tokenPayload = verifyInternalToken(token, internalAuthTokenSigningSecrets);
+
+      if (!tokenPayload) {
+        logger.error("authenticateTokenMiddleware: Failed to validate internal auth token using any signing key");
+        return res ? res.status(401).send("Unauthorized") : false;
+      }
+      if (bypassAccount) {
+        return next ? next() : true;
+      }
+
+      return findUserById(req.account.userId)
+        .then((user) => {
+          // This should not happen: the application record / api key references a userId that does not exist or has been deleted.
+          // Modify the source data.
+          assert(user, `unable to find user with id ${req.account.userId}`);
+
+          Reflect.deleteProperty(user, "password");
+          req.user = Object.assign({}, user, tokenPayload);
+          return next ? next() : true;
+        })
+        .catch((err) => {
+          logger.error(`authenticateTokenMiddleware: Error occurred finding user with id ${req.account.userId}`, err);
+          return res ? res.status(401).send("Unauthorized") : false;
+        });
+    } else {
+      // Validate a user-provided token
+      try {
+        const userTokenVerifyOptions = {
+          algorithms: ["HS512"],
+          subject: "account_user_sign_in",
+          issuer: constants.USER_AUTH_TOKEN_ISSUER,
+        };
+
+        if (audience) {
+          userTokenVerifyOptions.audience = audience;
+        }
+        req.user = jwt.verify(token, req.account.privateKey, userTokenVerifyOptions);
+        return next ? next() : true;
+      } catch (err) {
+        if (err.name === "TokenExpiredError" || err.name === "JsonWebTokenError") {
+          logger.info(`authenticateTokenMiddleware: Token expired or 'JsonWebTokenError' occurred`, err);
+          return res ? res.status(401).send("Unauthorized") : false;
+        }
+
+        logger.error(`authenticateTokenMiddleware: Unexpected error occurred validating user token`, err);
+        return res ? res.status(401).send("Unauthorized") : false;
+      }
+    }
   }
 
   return {
