@@ -51,7 +51,7 @@ function Authenticator(options, logger) {
     return null;
   }
 
-  function isTestToken (token) {
+  function isTestToken(token) {
     return (token && token === options.testToken);
   }
 
@@ -65,7 +65,7 @@ function Authenticator(options, logger) {
     return simpleDao.connect()
       .then((db) => {
         return db.collection(options.collection.name).findOne(query)
-        .then(result => {
+        .then((result) => {
           if(!result) {
             logger.error("api-key not found");
           }
@@ -81,7 +81,6 @@ function Authenticator(options, logger) {
     return useTestKey(apikey) || useDb(apikey);
   }
 
-
   function findUserById(userId) {
     if(typeof userId !== "string") {
       return Promise.reject(new Error("userId must be a string"));
@@ -92,7 +91,6 @@ function Authenticator(options, logger) {
         return db.collection(constants.DB_USER_COLLECTION_NAME).findOne({_id: simpleDao.objectId(userId), deleted: false});
       });
   }
-
 
   function shouldIgnoreRoute(originalUrl, method) {
     return ignoredRoutes.some(function (ignoredRoute) {
@@ -130,7 +128,7 @@ function Authenticator(options, logger) {
     }
   ));
 
-  function getToken (req) {
+  function getToken(req) {
     return req.headers.authorization.replace(/^Bearer /, "");
   }
 
@@ -166,7 +164,7 @@ function Authenticator(options, logger) {
     return verify("main", opts) || verify("secondary", opts);
   }
 
-  function authenticateTokenMiddleware (req, res, next, options = {}) {
+  function authenticateTokenMiddleware(req, res, next, options = {}) {
     const {audience, bypassAccount = false} = options;
 
     if (shouldValidateAccount(bypassAccount, req)) {
@@ -246,13 +244,13 @@ function Authenticator(options, logger) {
     }
   }
 
-  function tokenSecured (req, res, next) {
+  function tokenSecured(req, res, next) {
     return authenticateTokenMiddleware(req, res, next);
   }
 
   //if channel 'backoffice' or 'agency-backoffice' is requested in the body or querystring,
   //checks request has a valid token for backoffice ('betterez-app' internal application)
-  function tokenSecuredForBackoffice (req, res, next) {
+  function tokenSecuredForBackoffice(req, res, next) {
     let channel = (req.body ? req.body.channel : "") || (req.query ? req.query.channel : "");
     let channels = (req.body ? req.body.channels : "") || (req.query ? req.query.channels : "");
     let mustAuth = false;
@@ -292,7 +290,7 @@ function Authenticator(options, logger) {
     }
   }
 
-  function customerTokenSecured (req, res, next) {
+  function customerTokenSecured(req, res, next) {
     return authenticateTokenMiddleware(req, res, next, {audience: "customer"});
   }
 
@@ -300,7 +298,7 @@ function Authenticator(options, logger) {
     return authenticateTokenMiddleware(req, res, next, {bypassAccount: true});
   }
 
-  function tokenSecuredForAudiences (audiences) {
+  function tokenSecuredForAudiences(audiences) {
     return function (req, res, next) {
       return authenticateTokenMiddleware(req, res, function (err) {
         if (err) {
