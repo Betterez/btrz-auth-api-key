@@ -100,12 +100,12 @@ This is a key that can be set to use when Unit Testing your services. Using this
 
 #### testUser
 
-This is an object with any schema. If testKey is present and testUser is present it will be returned as the authenticated user in req.user
+This is an object with any schema. If testKey is present and testUser is present it will be returned as the authenticated user in req.user.
 Use this for testing.
 
 #### ignoredRoutes
 
-And array of strings containing a regular expression to match part of the whole or route. Use this to expose an end point or group of end points to the world without the need of an X-API-KEY. Try to make your regexp as restrictive as possible to avoid exposing end points by mistake.
+An array of strings containing a regular expression to match part of the whole or route. Use this to expose an end point or group of endpoints to the world without the need of an X-API-KEY. Try to make your regexp as restrictive as possible to avoid exposing endpoints by mistake.
 
 Ex: 
 
@@ -174,6 +174,14 @@ The service performing the internal request will generate an "internal" JWT toke
 When a service receives a request with an authorization token, the authentication middleware will look at the token `issuer` to determine whether it is a __user-provided__ or __internal__ token.  If an internal token is detected, the authentication middleware will attempt to verify the token signature using both the "main" and "secondary" secret signing keys.  If the token signature is verified, the authentication middleware will fetch user information using the API key provided in the request's `x-api-key` header, and populate the `req.user` object for downstream code to use.
 
 For security reasons, internal authentication tokens are short-lived, and expire soon after they are created.  The `InternalAuthTokenProvider` regenerates the internal auth token periodically, and you should always ask it for a new token every time you make a service-to-service request.
+
+#### req.tokens, req.application & req.user
+
+Once passport login is completed the request object is enhanced with three properties for later usage:
+
+1. `req.tokens: { token, jwtToken }` the `x-api-key` and the `jsonwebtoken`, respectivelly. If any of the values is missing it will get `null` assigned.
+2. `req.application` the application record associated to the `x-api-key` received.
+3. `req.user` the user from the jwtToken, either the internal account impersonation or the actual login user.
 
 #### Key rotation
 
