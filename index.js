@@ -116,16 +116,15 @@ function Authenticator(options, logger) {
   passport.use(new LocalStrategy(strategyOptions,
     function (req, apikey, done) {
       let onSuccess = function (result) {
-        const token = result && result.key;
         const jwtToken = getAuthToken(req);
         req.application = result;
-        req.tokens = { token, jwtToken };
-        // done executes Passport login and fills req.user (or it's alias if userProperty is defined in root index.js)
-        done(null, result);
-
-        if (jwtToken) {
-          tokenProcess(req, jwtToken);
+        req.tokens = { token: apikey, jwtToken };
+        // if jwtToken is present obtain user from it
+        if (result && result.privateKey && jwtToken) {
+          req.user = fetchUserFromJwtToken(jwtToken, result.privateKey);
         }
+        // done executes Passport login and fills req.user (or an alias if userProperty is defined in root index.js)
+        return done(null, result);
       };
       let onErr = function (err) { return done(err, null); };
 
@@ -194,7 +193,7 @@ function Authenticator(options, logger) {
     // moving a the token process to a unified function
     // which will also be used after the passport login happens
     // but omitting res, next and options
-    processJwtToken(req, jwtToken, res, next, options);
+    processJwtToken(req, res, jwtToken, next, options);
   }
 
   function tokenSecured(req, res, next) {
@@ -271,34 +270,37 @@ function Authenticator(options, logger) {
     };
   }
 
-  function processJwtToken(req, token, res = null, next = null, options = {}) {
+  function processJwtToken(req, res, jwtToken, next, options = {}) {
+    // will only assign req.user if it's not present. Because it could've been assigned previously
     const {audience = null, bypassAccount = false} = options;
-    const decodedToken = decodeToken(token);
+    const decodedToken = decodeToken(jwtToken);
 
-    if (isTestToken(token)) {
-      req.user = getTestUser(token);
-      return next ? next() : true;
+    if (isTestToken(jwtToken)) {
+      if (!req.user) {
+        req.user = getTestUser(jwtToken);
+      }
+      return next();
     }
 
     if (!decodedToken) {
       logger.error("authenticateTokenMiddleware: Token is malformed");
-      return res ? res.status(401).send("Unauthorized") : false;
+      return res.status(401).send("Unauthorized");
     } else if (!decodedToken.iss) {
       logger.error("authenticateTokenMiddleware: Token does not specify its issuer");
-      return res ? res.status(401).send("Unauthorized") : false;
+      return res.status(401).send("Unauthorized");
     }
 
     const isInternalToken = decodedToken.iss === constants.INTERNAL_AUTH_TOKEN_ISSUER;
 
     if (isInternalToken) {
-      const tokenPayload = verifyInternalToken(token, internalAuthTokenSigningSecrets);
+      const tokenPayload = verifyInternalToken(jwtToken, internalAuthTokenSigningSecrets);
 
       if (!tokenPayload) {
         logger.error("authenticateTokenMiddleware: Failed to validate internal auth token using any signing key");
-        return res ? res.status(401).send("Unauthorized") : false;
+        return res.status(401).send("Unauthorized");
       }
       if (bypassAccount) {
-        return next ? next() : true;
+        return next();
       }
 
       return findUserById(req.account.userId)
@@ -308,12 +310,15 @@ function Authenticator(options, logger) {
           assert(user, `unable to find user with id ${req.account.userId}`);
 
           Reflect.deleteProperty(user, "password");
-          req.user = Object.assign({}, user, tokenPayload);
-          return next ? next() : true;
+
+          if (!req.user) {
+            req.user = Object.assign({}, user, tokenPayload);
+          }
+          return next();
         })
         .catch((err) => {
           logger.error(`authenticateTokenMiddleware: Error occurred finding user with id ${req.account.userId}`, err);
-          return res ? res.status(401).send("Unauthorized") : false;
+          return res.status(401).send("Unauthorized");
         });
     } else {
       // Validate a user-provided token
@@ -327,18 +332,47 @@ function Authenticator(options, logger) {
         if (audience) {
           userTokenVerifyOptions.audience = audience;
         }
-        req.user = jwt.verify(token, req.account.privateKey, userTokenVerifyOptions);
-        return next ? next() : true;
+        // audience does not exist at api-key verification time, so if it's defined, token needs to be verified again
+        if (!req.user || audience) {
+          req.user = jwt.verify(jwtToken, req.account.privateKey, userTokenVerifyOptions);
+        }
+        return next();
       } catch (err) {
         if (err.name === "TokenExpiredError" || err.name === "JsonWebTokenError") {
           logger.info(`authenticateTokenMiddleware: Token expired or 'JsonWebTokenError' occurred`, err);
-          return res ? res.status(401).send("Unauthorized") : false;
+          return res.status(401).send("Unauthorized");
         }
 
         logger.error(`authenticateTokenMiddleware: Unexpected error occurred validating user token`, err);
-        return res ? res.status(401).send("Unauthorized") : false;
+        return res.status(401).send("Unauthorized");
       }
     }
+  }
+
+  function fetchUserFromJwtToken(jwtToken, privateKey) {
+    let user = null;
+    try {
+      const decodedToken = decodeToken(jwtToken);
+      const testToken = isTestToken(jwtToken);
+      if (decodedToken) {
+        const isInternalToken = decodedToken.iss === constants.INTERNAL_AUTH_TOKEN_ISSUER;
+        if (!isInternalToken) {
+          if (testToken) {
+            user = getTestUser(jwtToken);
+          } else {
+            const userTokenVerifyOptions = {
+              algorithms: ["HS512"],
+              subject: "account_user_sign_in",
+              issuer: constants.USER_AUTH_TOKEN_ISSUER,
+            };
+            user = jwt.verify(jwtToken, privateKey, userTokenVerifyOptions);
+          }
+        }
+      }
+    } catch (err) {
+      logger.error(`Passport localapikey validation: ${err.name || 'Unexpected error'} occurred fetching the user from the jwt`, err);
+    }
+    return user;
   }
 
   return {

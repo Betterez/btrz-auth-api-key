@@ -123,6 +123,15 @@ describe("Express integration", function () {
     app.get("/allowOnlyCustomerOrBackoffice", auth.tokenSecuredForAudiences(["betterez-app", "customer"]), function (req, res) {
       res.status(200).json(req.user || {});
     });
+    app.get("/gimmeTokens", function (req, res) {
+      res.status(200).json(req.tokens);
+    });
+    app.get("/gimmeTokensSecured", auth.tokenSecured, function (req, res) {
+      res.status(200).json(req.tokens);
+    });
+    app.get("/unsecureWithUser", function (req, res) {
+      res.status(200).json(req.user);
+    });
     fixtureLoader()
       .load({
           apikeys: [
@@ -519,11 +528,27 @@ describe("Express integration", function () {
 
   describe("tokenSecuredForBackoffice middleware", function () {
 
-    it("should not check the token if querystring does not reference channel", function (done) {
+    it("should not check the token if querystring does not reference channel but fill user if a validToken is provided", function (done) {
       request(app)
         .get("/backoffice")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          const body = JSON.parse(response.text);
+          expect(body.user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+          done();
+        });
+    });
+
+    it("should not check the token if querystring does not reference channel and no valid token is provided", function (done) {
+      request(app)
+        .get("/backoffice")
+        .set("X-API-KEY", validKey)
         .set("Accept", "application/json")
         .expect(200)
         .end(function (err, response) {
@@ -600,7 +625,6 @@ describe("Express integration", function () {
       request(app)
         .get("/backoffice?channel=websales")
         .set("X-API-KEY", validKey)
-        .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
         .expect(200)
         .end(function (err, response) {
@@ -686,7 +710,6 @@ describe("Express integration", function () {
         .post("/backoffice")
         .send({})
         .set("X-API-KEY", validKey)
-        .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
         .expect(200)
         .end(function (err, response) {
@@ -752,7 +775,6 @@ describe("Express integration", function () {
         .post("/backoffice")
         .send({channel: "websales"})
         .set("X-API-KEY", validKey)
-        .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
         .expect(200)
         .end(function (err, response) {
@@ -1020,6 +1042,64 @@ describe("Express integration", function () {
       const internalToken3 = internalAuthTokenProvider.getToken();
       expect(internalToken3).to.exist;
       expect(internalToken3).to.not.equal(internalToken2);
+    });
+  });
+
+  describe("req.tokens & req.user", () => {
+    it("should add tokens to request on non-secure endpoint", () => {
+      const internalToken = internalAuthTokenProvider.getToken();
+
+      return request(app)
+        .get("/gimmeTokens")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${internalToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .then(({body}) => {
+          expect(body.token).to.deep.equal(validKey);
+          expect(body.jwtToken).to.deep.equal(internalToken);
+        });
+    });
+
+    it("should add tokens to request on secure endpoint", () => {
+      const internalToken = internalAuthTokenProvider.getToken();
+
+      return request(app)
+        .get("/gimmeTokensSecured")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${internalToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .then(({body}) => {
+          expect(body.token).to.deep.equal(validKey);
+          expect(body.jwtToken).to.deep.equal(internalToken);
+        });
+    });
+
+    it("should add only x-api-key token if Authorization header is not present", () => {
+      const internalToken = internalAuthTokenProvider.getToken();
+
+      return request(app)
+        .get("/gimmeTokens")
+        .set("X-API-KEY", validKey)
+        .set("Accept", "application/json")
+        .expect(200)
+        .then(({body}) => {
+          expect(body.token).to.deep.equal(validKey);
+          expect(body.jwtToken).to.be.null;
+        });
+    });
+
+    it("should set req.user even if the endpoint is not secured", function () {
+      request(app)
+        .get("/unsecureWithUser")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .then(({body}) => {
+          expect(body.user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+        });
     });
   });
 });
