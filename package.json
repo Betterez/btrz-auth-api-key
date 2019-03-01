@@ -1,6 +1,6 @@
 {
   "name": "btrz-auth-api-key",
-  "version": "2.3.2",
+  "version": "2.4.0",
   "description": "Betterez api authorization library",
   "main": "index.js",
   "scripts": {
