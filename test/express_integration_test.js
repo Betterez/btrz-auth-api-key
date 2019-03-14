@@ -385,6 +385,21 @@ describe("Express integration", function () {
       });
   });
 
+  it("should authenticate the user with api key and token when 'Bearer' isn't specified", function (done) {
+    request(app)
+      .get("/secured")
+      .set("X-API-KEY", validKey)
+      .set("Authorization", `${validToken}`)
+      .set("Accept", "application/json")
+      .expect(200)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
   it("should authenticate the user with api key and a test token", function (done) {
     request(app)
       .get("/secured")
@@ -506,6 +521,14 @@ describe("Express integration", function () {
       return request(app)
         .get("/route/with/only/internal/token")
         .set("Authorization", `Bearer ${validInternalToken}`)
+        .set("Accept", "application/json")
+        .expect(200);
+    });
+
+    it("should authenticate with an internal token when 'Bearer' isn't specified", () => {
+      return request(app)
+        .get("/route/with/only/internal/token")
+        .set("Authorization", `${validInternalToken}`)
         .set("Accept", "application/json")
         .expect(200);
     });
@@ -841,6 +864,24 @@ describe("Express integration", function () {
         });
     });
 
+    it("should authorize when 'Bearer' isn't specified in token", function (done) {
+      request(app)
+        .post("/backoffice")
+        .send({channel: "backoffice"})
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `${validBackofficeToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let user = JSON.parse(response.text).user;
+          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+          done();
+        });
+    });
+
     it("should authorize the configured test token", function (done) {
       request(app)
         .post("/backoffice")
@@ -980,6 +1021,23 @@ describe("Express integration", function () {
           done();
         });
     });
+
+    it("should authenticate customer with token when 'Bearer' isn't specified and set customer on request", function (done) {
+      request(app)
+        .get("/customer")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `${validCustomerToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let customer = JSON.parse(response.text).customer;
+          expect(customer.customerNumber).to.equal("111-222-333");
+          done();
+        });
+    });
   });
 
   describe("tokenSecuredForAudiences", () => {
@@ -988,6 +1046,14 @@ describe("Express integration", function () {
         .get("/allowOnlyCustomerOrBackoffice")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${token}`)
+        .set("Accept", "application/json")
+        .end(cb);
+    }
+    function sendRequestWithoutBearer(token, cb) {
+      request(app)
+        .get("/allowOnlyCustomerOrBackoffice")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `${token}`)
         .set("Accept", "application/json")
         .end(cb);
     }
@@ -1010,6 +1076,14 @@ describe("Express integration", function () {
         if (err) { return done(err); }
         expect(response.status).to.equal(401);
         expect(response.text).to.equal("Unauthorized");
+        done();
+      });
+    });
+
+    it("should authorize for the internal app", function (done) {
+      sendRequestWithoutBearer(validBackofficeToken, function (err, response) {
+        if (err) { return done(err); }
+        expect(JSON.parse(response.text).user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
         done();
       });
     });

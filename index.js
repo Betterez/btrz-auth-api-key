@@ -136,12 +136,7 @@ function Authenticator(options, logger) {
   ));
 
   function getAuthToken(req) {
-    const authorizationHeader = req.headers.authorization || "";
-    const jwtTokenRegExp = /Bearer (.*)/i;
-    const authHeaderIsValid = jwtTokenRegExp.test(authorizationHeader);
-    const jwtToken = authHeaderIsValid ? authorizationHeader.match(jwtTokenRegExp)[1] : null;
-
-    return jwtToken;
+    return req.headers.authorization ? req.headers.authorization.replace(/^Bearer /, "") : null;
   }
 
   function decodeToken(token) {
