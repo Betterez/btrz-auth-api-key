@@ -37,6 +37,6 @@
     "mocha": "latest",
     "mockdate": "2.0.2",
     "pow-mongodb-fixtures": "latest",
-    "supertest": "latest"
+    "supertest": "^3.4.2"
   }
 }
