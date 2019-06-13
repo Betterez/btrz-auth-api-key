@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/Betterez/btrz-auth-api-key",
   "dependencies": {
-    "btrz-simple-dao": "2.2.1",
+    "btrz-simple-dao": "^3.0.1",
     "jsonwebtoken": "^5.7.0",
     "passport": "^0.2.2",
     "passport-localapikey-update": "^0.5.0"
