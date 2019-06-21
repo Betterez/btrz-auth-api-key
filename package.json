@@ -1,6 +1,6 @@
 {
   "name": "btrz-auth-api-key",
-  "version": "2.4.2",
+  "version": "2.4.3",
   "description": "Betterez api authorization library",
   "main": "index.js",
   "scripts": {
@@ -26,7 +26,9 @@
     "btrz-simple-dao": "^3.0.1",
     "jsonwebtoken": "^5.7.0",
     "passport": "^0.2.2",
-    "passport-localapikey-update": "^0.5.0"
+    "passport-localapikey-update": "^0.5.0",
+    "request": "^2.88.0",
+    "btrz-circuit-breaker": "git+ssh://git@github.com/Betterez/btrz-circuit-breaker.git#v0.1.4"
   },
   "devDependencies": {
     "body-parser": "latest",
@@ -37,6 +39,7 @@
     "mocha": "latest",
     "mockdate": "2.0.2",
     "pow-mongodb-fixtures": "latest",
-    "supertest": "^3.4.2"
+    "supertest": "^3.4.2",
+    "nock": "8.2.0"
   }
 }

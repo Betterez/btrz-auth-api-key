@@ -1,8 +1,10 @@
 "use strict";
 
-const assert = require("assert"),
-  constants = require("./constants"),
-  InternalAuthTokenProvider = require("./internalAuthTokenProvider");
+const assert = require("assert");
+const constants = require("./constants");
+const InternalAuthTokenProvider = require("./internalAuthTokenProvider");
+const request = require("request");
+const CircuitBreaker = require("btrz-circuit-breaker");
 
 function Authenticator(options, logger) {
 
@@ -18,6 +20,7 @@ function Authenticator(options, logger) {
     apiKeyHeader: options.authKeyFields && options.authKeyFields.header ? options.authKeyFields.header : "x-api-key",
     apiKeyField: options.authKeyFields && options.authKeyFields.request ? options.authKeyFields.request : "x-api-key"
   };
+  let preLoadedUser = null;
 
   // username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]][/[database][?options]]
 
@@ -27,17 +30,14 @@ function Authenticator(options, logger) {
     simpleDao = new SimpleDao(options),
     jwt = require("jsonwebtoken");
 
-  function useTestKey(apikey) {
-    if (apikey === options.testKey) {
-      return new Promise(function (resolve) {
-        if (options.testUser) {
-          resolve(options.testUser);
-        } else {
-          resolve(true);
-        }
-      });
-    }
-    return null;
+  function useTestKey() {
+    return new Promise(function (resolve) {
+      if (options.testUser) {
+        resolve(options.testUser);
+      } else {
+        resolve(true);
+      }
+    });
   }
 
   function getTestUser(token) {
@@ -77,11 +77,48 @@ function Authenticator(options, logger) {
       });
   }
 
-  function findByApiKey(apikey) {
-    return useTestKey(apikey) || useDb(apikey);
+  function getAuthInfo(apikey) {
+    const transport = new CircuitBreaker().wrapHttpTransport(request);
+    const url = `${options.apiUrl}/${apikey}`;
+    const payload = {
+      headers: {
+        "Authorization": `Bearer ${options.internalAuthTokenProvider.getToken()}`
+      },
+      body: {},
+      json: true
+    };    
+    return transport("GET", url, payload)
+      .then((info) => {
+        preLoadedUser = info.user;
+        return info.application;
+      })
+      .catch((err) => {
+        logger.error("ERROR getting auth info::getAuthInfo::", err);
+        throw new Error(err);
+      })
   }
 
-  function findUserById(userId) {
+  function useApiAuth() {
+    return options.apiAuth && options.apiUrl && options.internalAuthTokenProvider; 
+  }
+
+  function findByApiKey(apikey, req) {
+    if (apikey === options.testKey) { 
+      return useTestKey(apikey);
+    }
+    
+    if (useApiAuth()) {
+      return getAuthInfo(apikey, req);
+    }
+
+    return useDb(apikey);
+  }
+
+  function findUserById(userId) {    
+    if (preLoadedUser) {
+      return Promise.resolve(preLoadedUser);
+    }
+
     if(typeof userId !== "string") {
       return Promise.reject(new Error("userId must be a string"));
     }
@@ -128,7 +165,7 @@ function Authenticator(options, logger) {
       };
       let onErr = function (err) { return done(err, null); };
 
-      let result = findByApiKey(apikey).then(onSuccess, onErr);
+      let result = findByApiKey(apikey, req).then(onSuccess, onErr);
       if (result.done) {
         result.done();
       }
