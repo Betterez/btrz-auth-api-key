@@ -102,13 +102,13 @@ function Authenticator(options, logger) {
     return options.apiAuth && options.apiUrl && options.internalAuthTokenProvider; 
   }
 
-  function findByApiKey(apikey, req) {
+  function findByApiKey(apikey) {
     if (apikey === options.testKey) { 
       return useTestKey(apikey);
     }
     
     if (useApiAuth()) {
-      return getAuthInfo(apikey, req);
+      return getAuthInfo(apikey);
     }
 
     return useDb(apikey);
@@ -165,7 +165,7 @@ function Authenticator(options, logger) {
       };
       let onErr = function (err) { return done(err, null); };
 
-      let result = findByApiKey(apikey, req).then(onSuccess, onErr);
+      let result = findByApiKey(apikey).then(onSuccess, onErr);
       if (result.done) {
         result.done();
       }
