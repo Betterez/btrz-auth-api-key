@@ -87,6 +87,25 @@ describe("API auth integration tests", () => {
       });
   });
 
+  it("should return 401 as the key was not found", (done) => {
+    nock(options.apiUrl)
+      .get("/wrongKey")
+      .reply(400);
+
+    request(app)
+      .get("/secured")
+      .set("X-API-KEY", validKey)
+      .set("Authorization", `Bearer ${validToken}`)
+      .set("Accept", "application/json")
+      .expect(401)
+      .end((err) => {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
   it("should authenticate with token and set req.user to the token payload", (done) => {
     nock(options.apiUrl)
       .get(`/${validKey}`)

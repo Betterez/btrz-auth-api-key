@@ -94,8 +94,8 @@ function Authenticator(options, logger) {
       })
       .catch((err) => {
         logger.error("ERROR getting auth info::getAuthInfo::", err);
-        throw new Error(err);
-      })
+        return null;
+      });
   }
 
   function useApiAuth() {
