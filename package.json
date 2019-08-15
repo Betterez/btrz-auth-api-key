@@ -31,14 +31,14 @@
     "btrz-circuit-breaker": "git+ssh://git@github.com/Betterez/btrz-circuit-breaker.git#v0.1.4"
   },
   "devDependencies": {
-    "body-parser": "latest",
-    "chai": "latest",
-    "chance": "latest",
-    "express": "latest",
+    "body-parser": "1.19.0",
+    "chai": "4.2.0",
+    "chance": "1.0.18",
+    "express": "4.17.1",
     "istanbul": "^0.4.1",
-    "mocha": "latest",
+    "mocha": "6.2.0",
     "mockdate": "2.0.2",
-    "pow-mongodb-fixtures": "latest",
+    "pow-mongodb-fixtures": "0.14.0",
     "supertest": "^3.4.2",
     "nock": "8.2.0"
   }
