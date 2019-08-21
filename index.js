@@ -24,11 +24,11 @@ function Authenticator(options, logger) {
 
   // username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]][/[database][?options]]
 
-  const passport = require("passport"),
-    LocalStrategy = require("passport-localapikey-update").Strategy,
-    SimpleDao = require("btrz-simple-dao").SimpleDao,
-    simpleDao = new SimpleDao(options),
-    jwt = require("jsonwebtoken");
+  const passport = require("passport");
+  const LocalStrategy = require("passport-localapikey-update").Strategy;
+  const SimpleDao = require("btrz-simple-dao").SimpleDao;
+  const simpleDao = new SimpleDao(options);
+  const jwt = require("jsonwebtoken");
 
   function useTestKey() {
     return new Promise(function (resolve) {
@@ -158,14 +158,19 @@ function Authenticator(options, logger) {
         req.tokens = { token: apikey, jwtToken };
         // if jwtToken is present obtain user from it
         if (result && result.privateKey && jwtToken) {
-          req.user = fetchUserFromJwtToken(jwtToken, result.privateKey);
+          const user = fetchUserFromJwtToken(jwtToken, result.privateKey);
+          if (user && user.aud === 'customer') {
+            req.customer = user;
+          } else {
+            req.user = user;
+          }
         }
         // done executes Passport login and fills req.user (or an alias if userProperty is defined in root index.js)
         return done(null, result);
       };
       let onErr = function (err) { return done(err, null); };
 
-      let result = findByApiKey(apikey).then(onSuccess, onErr);
+      let result = findByApiKey(apikey, req).then(onSuccess, onErr);
       if (result.done) {
         result.done();
       }
