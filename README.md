@@ -165,13 +165,14 @@ In this example, the route will be valid for customers or backoffice users:
         ...
     });
 
-#### req.tokens, req.application & req.user
+#### req.tokens, req.application, req.user & req.customer
 
 Once passport login is completed the request object is enhanced with three properties for later usage:
 
 1. `req.tokens: { token, jwtToken }` the `x-api-key` and the `jsonwebtoken`, respectivelly. If any of the values is missing it will get `null` assigned.
 2. `req.application` the application record associated to the `x-api-key` received.
 3. `req.user` the user from the jwtToken, either the internal account impersonation or the actual login user.
+4. `req.customer` if the audience for the user on the jwtToken is equal customer.
 
 ### Authenticating Internal service-to-service calls
 
