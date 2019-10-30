@@ -106,7 +106,7 @@ function Authenticator(options, logger) {
     if (apikey === options.testKey) { 
       return useTestKey(apikey);
     }
-    
+
     if (useApiAuth()) {
       return getAuthInfo(apikey);
     }
@@ -307,6 +307,30 @@ function Authenticator(options, logger) {
     };
   }
 
+  function findOneAdministrator(accountId) {
+    const query = {
+      accountId,
+      deleted: false,
+      "roles.administrator": 1,
+      "locked.status": false,
+    };
+    return simpleDao.connect()
+      .then((db) => {
+        return db.collection(constants.DB_USER_COLLECTION_NAME).findOne(query);
+      });
+  }
+
+  function findUserForInternalToken(application) {
+    // find the "original user", using the userId of the Application found by x-api-key
+    return findUserById(application.userId).then((user) => {
+      if (user) {
+        return user;
+      }
+      // the "original user" is no longer enabled, fetch a valid administrator to impersonate
+      return findOneAdministrator(application.accountId);
+    });
+  }
+
   function processJwtToken(req, res, jwtToken, next, options = {}) {
     // will only assign req.user if it's not present. Because it could've been assigned previously
     const {audience = null, bypassAccount = false} = options;
@@ -340,11 +364,9 @@ function Authenticator(options, logger) {
         return next();
       }
 
-      return findUserById(req.account.userId)
+      return findUserForInternalToken(req.account)
         .then((user) => {
-          // This should not happen: the application record / api key references a userId that does not exist or has been deleted.
-          // Modify the source data.
-          assert(user, `unable to find user with id ${req.account.userId}`);
+          assert(user, "unable to find user to impersonate");
 
           Reflect.deleteProperty(user, "password");
 
@@ -354,7 +376,7 @@ function Authenticator(options, logger) {
           return next();
         })
         .catch((err) => {
-          logger.error(`authenticateTokenMiddleware: Error occurred finding user with id ${req.account.userId}`, err);
+          logger.error(`authenticateTokenMiddleware: Error occurred finding user to impersonate for internal token. Check user ${req.account.userId} exists, or the account has at least one enabled administrator.`, err);
           return res.status(401).send("Unauthorized");
         });
     } else {

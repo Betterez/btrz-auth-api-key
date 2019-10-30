@@ -1,5 +1,3 @@
-"use strict";
-
 function fixtureLoader() {
     var options = {
       host: "127.0.0.1",
@@ -28,6 +26,7 @@ describe("Express integration", function () {
     testKey = "test-api-key",
     validKey = "72ed8526-24a6-497f-8949-ec7ed6766aaf",
     validKeyWithNoUser = "10967537-7ea4-46f3-a723-9822db056646",
+    validKeyWithDeletedUser = "10967537-7ea4-46f3-a723-9822db055757",
     privateKey = "492a97f3-597f-4b54-84f5-f8ad3eb6ee36",
     internalAuthTokenSigningSecrets = {
       main: chance.hash(),
@@ -36,6 +35,7 @@ describe("Express integration", function () {
     internalAuthTokenProvider = null,
     testUser = {_id: chance.hash(), name: "Test", last: "User"},
     testFullUser = {_id: SimpleDao.objectId(), name: "Test", last: "User", display: "Testing", password: chance.hash(), deleted: false},
+    deletedUser = {_id: SimpleDao.objectId(), deleted: true},
     userTokenSigningOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in"},
     internalTokenSigningOptions = {algorithm: "HS512", expiresIn: "2 minutes",
       issuer: constants.INTERNAL_AUTH_TOKEN_ISSUER, audience: "betterez-app"},
@@ -46,6 +46,12 @@ describe("Express integration", function () {
     validCustomerToken = jwt.sign({customer: {_id: 1, customerNumber: "111-222-333"}, aud: "customer"}, privateKey, userTokenSigningOptions),
     testToken = "test-token",
     options;
+
+  const apiKeys = [
+    {accountId: chance.hash(), key: validKey, privateKey: privateKey, userId: testFullUser._id.toString()},
+    {accountId: chance.hash(), key: validKeyWithNoUser, privateKey: chance.guid(), userId: SimpleDao.objectId().toString()},
+    {accountId: chance.hash(), key: validKeyWithDeletedUser, privateKey: chance.guid(), userId: deletedUser._id.toString()},
+  ];
 
   before(function (done) {
     options = {
@@ -134,11 +140,8 @@ describe("Express integration", function () {
     });
     fixtureLoader()
       .load({
-          apikeys: [
-            {accountId: chance.hash(), key: validKey, privateKey: privateKey, userId: testFullUser._id.toString()},
-            {accountId: chance.hash(), key: validKeyWithNoUser, privateKey: chance.guid(), userId: SimpleDao.objectId().toString()}
-          ],
-          users: [testFullUser]
+          apikeys: apiKeys,
+          users: [testFullUser, deletedUser]
         }, () => {
           done();
         });
@@ -546,6 +549,47 @@ describe("Express integration", function () {
         .set("Authorization", "Bearer not_valid_token")
         .set("Accept", "application/json")
         .expect(401);
+    });
+
+    it("should fail because there's no administrator user enabled to impersonate", () => {
+      return request(app)
+        .get("/secured")
+        .set("X-API-KEY", validKeyWithDeletedUser)
+        .set("Authorization", `Bearer ${validInternalToken}`)
+        .set("Accept", "application/json")
+        .expect(401);
+    });
+
+    describe("with a fallback user to impersonate", () => {
+      const fallbackAdministrator = {
+        email: "laststanding@administrator.com",
+        accountId: apiKeys[2].accountId,
+        deleted: false,
+        roles: {administrator: 1},
+        locked: {status: false},
+      };
+
+      before((done) => {
+        fixtureLoader()
+        .load({
+            users: [fallbackAdministrator]
+          }, () => {
+            done();
+          });
+      });
+
+      it("should use another administrator user to impersonate", () => {
+        console.log(fallbackAdministrator)
+        return request(app)
+          .get("/secured")
+          .set("X-API-KEY", validKeyWithDeletedUser)
+          .set("Authorization", `Bearer ${validInternalToken}`)
+          .set("Accept", "application/json")
+          .expect(200)
+          .then(({body}) => {
+            expect(body.email).to.equal(fallbackAdministrator.email);
+          });
+      });
     });
   });
 
