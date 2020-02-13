@@ -155,10 +155,11 @@ describe("Express integration", function () {
     MockDate.reset();
   });
 
-  it("should return 200 ok if no X-API-KEY is present but route should not be secured", function (done) {
+  it("should return 200 ok if no X-API-KEY is present but route should not be secured and use internal token", function (done) {
     request(app)
       .get("/api-docs")
       .set("Accept", "application/json")
+      .set("Authorization", `Bearer ${validInternalToken}`)
       .expect(200)
       .end(function (err) {
         if (err) {
@@ -181,10 +182,11 @@ describe("Express integration", function () {
       });
   });
 
-  it("should return 200 ok if no X-API-KEY is present but route should not be secured (ignore method GET)", function (done) {
+  it("should return 200 ok if no X-API-KEY is present but route should not be secured and use internal token (ignore method GET)", function (done) {
     request(app)
       .get("/ignored-get-put")
       .set("Accept", "application/json")
+      .set("Authorization", `Bearer ${validInternalToken}`)
       .expect(200)
       .end(function (err) {
         if (err) {
@@ -194,10 +196,11 @@ describe("Express integration", function () {
       });
   });
 
-  it("should return 200 ok if no X-API-KEY is present but route should not be secured (ignore method PUT)", function (done) {
+  it("should return 200 ok if no X-API-KEY is present but route should not be secured and use internal token (ignore method PUT)", function (done) {
     request(app)
       .put("/ignored-get-put")
       .set("Accept", "application/json")
+      .set("Authorization", `Bearer ${validInternalToken}`)
       .expect(200)
       .end(function (err) {
         if (err) {
@@ -220,10 +223,11 @@ describe("Express integration", function () {
       });
   });
 
-  it("should return 200 ok if no X-API-KEY is present but route should not be secured", function (done) {
+  it("should return 200 ok if no X-API-KEY is present but route should not be secured and use internal token", function (done) {
     request(app)
       .get("/api-docs/pets")
       .set("Accept", "application/json")
+      .set("Authorization", `Bearer ${validInternalToken}`)
       .expect(200)
       .end(function (err) {
         if (err) {
