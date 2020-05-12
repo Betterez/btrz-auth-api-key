@@ -1,13 +1,3 @@
-function fixtureLoader() {
-    var options = {
-      host: "127.0.0.1",
-      port: "27017",
-      user: "",
-      pass: ""
-    };
-    return require("pow-mongodb-fixtures").connect("btrzAuthApiKeyTest", options);
-}
-
 describe("Express integration", function () {
 
   let request = require("supertest"),
@@ -19,9 +9,9 @@ describe("Express integration", function () {
     bodyParser = require("body-parser"),
     jwt = require("jsonwebtoken"),
     SimpleDao = require("btrz-simple-dao").SimpleDao,
-    mockLogger = {info() {}, error() {}},
+    mockLogger = { info() { }, error() { } },
     constants = require("../constants"),
-    {Authenticator, InternalAuthTokenProvider} = require("../"),
+    { Authenticator, InternalAuthTokenProvider } = require("../"),
     app,
     testKey = "test-api-key",
     validKey = "72ed8526-24a6-497f-8949-ec7ed6766aaf",
@@ -33,19 +23,22 @@ describe("Express integration", function () {
       secondary: chance.hash()
     },
     internalAuthTokenProvider = null,
-    testUser = {_id: chance.hash(), name: "Test", last: "User"},
-    testFullUser = {_id: SimpleDao.objectId(), name: "Test", last: "User", display: "Testing", password: chance.hash(), deleted: false},
-    deletedUser = {_id: SimpleDao.objectId(), deleted: true},
-    userTokenSigningOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in"},
-    internalTokenSigningOptions = {algorithm: "HS512", expiresIn: "2 minutes",
-      issuer: constants.INTERNAL_AUTH_TOKEN_ISSUER, audience: "betterez-app"},
-    validToken = jwt.sign({user: testFullUser}, privateKey, userTokenSigningOptions),
-    validBackofficeToken = jwt.sign({user: testFullUser, aud: "betterez-app"}, privateKey, userTokenSigningOptions),
-    validBackofficeTokenForOtherApp = jwt.sign({user: testFullUser, aud: "other-app"}, privateKey, userTokenSigningOptions),
+    testUser = { _id: chance.hash(), name: "Test", last: "User" },
+    testFullUser = { _id: SimpleDao.objectId(), name: "Test", last: "User", display: "Testing", password: chance.hash(), deleted: false },
+    deletedUser = { _id: SimpleDao.objectId(), deleted: true },
+    userTokenSigningOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in" },
+    internalTokenSigningOptions = {
+      algorithm: "HS512", expiresIn: "2 minutes",
+      issuer: constants.INTERNAL_AUTH_TOKEN_ISSUER, audience: "betterez-app"
+    },
+    validToken = jwt.sign({ user: testFullUser }, privateKey, userTokenSigningOptions),
+    validBackofficeToken = jwt.sign({ user: testFullUser, aud: "betterez-app" }, privateKey, userTokenSigningOptions),
+    validBackofficeTokenForOtherApp = jwt.sign({ user: testFullUser, aud: "other-app" }, privateKey, userTokenSigningOptions),
     validInternalToken = jwt.sign({}, internalAuthTokenSigningSecrets.main, internalTokenSigningOptions),
-    validCustomerToken = jwt.sign({customer: {_id: 1, customerNumber: "111-222-333"}, aud: "customer"}, privateKey, userTokenSigningOptions),
+    validCustomerToken = jwt.sign({ customer: { _id: 1, customerNumber: "111-222-333" }, aud: "customer" }, privateKey, userTokenSigningOptions),
     testToken = "test-token",
-    options;
+    options,
+    simpleDao;
 
   const apiKeys = [
     {accountId: chance.hash(), key: validKey, privateKey: privateKey, userId: testFullUser._id.toString()},
@@ -53,7 +46,7 @@ describe("Express integration", function () {
     {accountId: chance.hash(), key: validKeyWithDeletedUser, privateKey: chance.guid(), userId: deletedUser._id.toString()},
   ];
 
-  before(function (done) {
+  beforeEach(async () => {
     options = {
       "testKey": testKey,
       "testUser": testUser,
@@ -138,21 +131,19 @@ describe("Express integration", function () {
     app.get("/unsecureWithUser", function (req, res) {
       res.status(200).json(req.user);
     });
-    fixtureLoader()
-      .load({
-          apikeys: apiKeys,
-          users: [testFullUser, deletedUser]
-        }, () => {
-          done();
-        });
+    simpleDao = new SimpleDao(options);
+    const db = await simpleDao.connect();
+    await db.collection(options.collection.name)
+      .insertMany(apiKeys);
+    await db.collection("users")
+      .insertMany([testFullUser, deletedUser]);
   });
 
-  after(function (done) {
-    fixtureLoader().clear(done);
-  });
-
-  afterEach(() => {
+  afterEach(async () => {
     MockDate.reset();
+    const db = await simpleDao.connect();
+    await db.dropCollection("apikeys");
+    await db.dropCollection("users");
   });
 
   it("should return 200 ok if no X-API-KEY is present but route should not be secured and use internal token", function (done) {
@@ -573,13 +564,10 @@ describe("Express integration", function () {
         locked: {status: false},
       };
 
-      before((done) => {
-        fixtureLoader()
-        .load({
-            users: [fallbackAdministrator]
-          }, () => {
-            done();
-          });
+      beforeEach(async () => {
+        const db = await simpleDao.connect();
+        await db.collection("users")
+          .insertMany([fallbackAdministrator]);
       });
 
       it("should use another administrator user to impersonate", () => {
@@ -949,7 +937,7 @@ describe("Express integration", function () {
     });
 
     describe("testing options audiences array", function () {
-      before(function () {
+      beforeEach(function () {
         options.audiences = ["betterez-app", "btrz-mobile-scanner"];
       });
 
