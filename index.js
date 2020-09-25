@@ -377,6 +377,7 @@ function Authenticator(options, logger) {
           if (!req.user) {
             req.user = Object.assign({}, user, tokenPayload);
           }
+          req.internalUser = true;
           return next();
         })
         .catch((err) => {
