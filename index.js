@@ -147,6 +147,10 @@ function Authenticator(options, logger) {
     const decodedToken = decodeToken(jwtToken);
     const isInternalToken = decodedToken && decodedToken.iss === constants.INTERNAL_AUTH_TOKEN_ISSUER;
 
+    if(isInternalToken) {
+      req.internalUser = true;          
+    }
+
     if (shouldIgnoreRoute(req.originalUrl, req.method) && (!decodedToken || isInternalToken)) {
       next();
     } else {
@@ -377,7 +381,6 @@ function Authenticator(options, logger) {
           if (!req.user) {
             req.user = Object.assign({}, user, tokenPayload);
           }
-          req.internalUser = true;
           return next();
         })
         .catch((err) => {
