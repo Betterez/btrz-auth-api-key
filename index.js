@@ -145,7 +145,7 @@ function Authenticator(options, logger) {
   function innerAuthenticateMiddleware(req, res, next) {
     const jwtToken = getAuthToken(req);
     const decodedToken = decodeToken(jwtToken);
-    const isXApiKey = req.headers["x-api-key"];
+    const isXApiKey = req.headers[strategyOptions.apiKeyHeader] || req.query[strategyOptions.apiKeyField]; 
     const someAuthAttempt = decodedToken || isXApiKey;    
     const isInternalToken = decodedToken && decodedToken.iss === constants.INTERNAL_AUTH_TOKEN_ISSUER;
 

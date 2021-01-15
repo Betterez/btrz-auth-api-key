@@ -282,6 +282,19 @@ describe("Express integration", function () {
       });
   });
 
+  it("should authenticate the user if QS X-API-KEY is valid despite it is an ignored route", function (done) {
+    request(app)
+      .get(`/ignored-get-put?apiKey=${validKey}`)
+      .set("Accept", "application/json")
+      .expect(200)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
   it("should authenticate the user if QS X-API-KEY is valid", function (done) {
     request(app)
       .get(`/hello-world?apiKey=${validKey}`)
