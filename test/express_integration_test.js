@@ -201,6 +201,19 @@ describe("Express integration", function () {
       });
   });
 
+  it("should return 200 ok if no X-API-KEY is present but route should not be secured (ignore method PUT)", function (done) {
+    request(app)
+      .put("/ignored-get-put")
+      .set("Accept", "application/json")
+      .expect(200)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });  
+
   it("should return 401 if no X-API-KEY is present and method POST for route is secured", function (done) {
     request(app)
       .post("/ignored-get-put")

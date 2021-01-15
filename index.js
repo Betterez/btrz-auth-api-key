@@ -145,13 +145,15 @@ function Authenticator(options, logger) {
   function innerAuthenticateMiddleware(req, res, next) {
     const jwtToken = getAuthToken(req);
     const decodedToken = decodeToken(jwtToken);
+    const isXApiKey = req.headers["x-api-key"];
+    const someAuthAttempt = decodedToken || isXApiKey;    
     const isInternalToken = decodedToken && decodedToken.iss === constants.INTERNAL_AUTH_TOKEN_ISSUER;
 
     if(isInternalToken) {
       req.internalUser = true;          
     }
 
-    if (shouldIgnoreRoute(req.originalUrl, req.method) && (!decodedToken || isInternalToken)) {
+    if (shouldIgnoreRoute(req.originalUrl, req.method) && (!someAuthAttempt || isInternalToken)) {
       next();
     } else {
       passport.authenticate("localapikey", {session: false})(req, res, next);
