@@ -57,6 +57,7 @@ describe("Express integration", function () {
       "ignoredRoutes": [
         "^/api-docs",
         "^/ignoredsecure",
+        "^/ignored-and-secure",
         "^/say-no$",
         "^/route/with/only/internal/token",
         {route: "^/ignored-get-put", methods: ["GET", "PUT"]}
@@ -107,6 +108,9 @@ describe("Express integration", function () {
     app.get("/ignoredsecure", auth.tokenSecured, function (req, res) {
       res.status(200).json(req.account);
     });
+    app.get("/ignored-and-secure", auth.optionalTokenSecured, function (req, res) {
+      res.status(200).json(req.account);
+    });    
     app.get("/backoffice", auth.tokenSecuredForBackoffice, function (req, res) {
       res.status(200).json(req.user || {message: "no token"});
     });
@@ -393,6 +397,92 @@ describe("Express integration", function () {
         done();
       });
   });
+
+  it("should return 200 if xapikey and jwttoken are sent for an optional token secured route", function (done) {
+    request(app)
+      .get("/ignored-and-secure")
+      .set("X-API-KEY", validKey)
+      .set("Authorization", `Bearer ${validToken}`)
+      .set("Accept", "application/json")
+      .expect(200)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });  
+
+  it("should return 401 if xapikey is invalid for an optional token secured route", function (done) {
+    request(app)
+      .get("/ignored-and-secure")
+      .set("X-API-KEY", "invalid key")
+      .set("Authorization", `Bearer ${validToken}`)
+      .set("Accept", "application/json")
+      .expect(401)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+  
+  it("should return 401 if jwttoken is invalid for an optional token secured route", function (done) {
+    request(app)
+      .get("/ignored-and-secure")
+      .set("X-API-KEY", validKey)
+      .set("Authorization", `Bearer invalidtoken`)
+      .set("Accept", "application/json")
+      .expect(401)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+  
+  it("should return 401 if jwttoken is ommited for an optional token secured route", function (done) {
+    request(app)
+      .get("/ignored-and-secure")
+      .set("X-API-KEY", validKey)
+      .set("Accept", "application/json")
+      .expect(401)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });  
+
+  it("should return 401 if xapikey is ommited for an optional token secured route", function (done) {
+    request(app)
+      .get("/ignored-and-secure")
+      .set("Authorization", `Bearer ${validToken}`)
+      .set("Accept", "application/json")
+      .expect(401)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });
+
+  it("should return 200 if no auth is attempted, the route is ignored and an optional token secured setup is used", function (done) {
+    request(app)
+      .get("/ignored-and-secure")
+      .set("Accept", "application/json")
+      .expect(200)
+      .end(function (err) {
+        if (err) {
+          return done(err);
+        }
+        done();
+      });
+  });    
 
   it("should authenticate the user with api key and token", function (done) {
     request(app)

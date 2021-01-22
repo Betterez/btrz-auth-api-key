@@ -142,6 +142,12 @@ function Authenticator(options, logger) {
     });
   }
 
+  function isIgnoredRouteWithoutAuthAttempt(req, strategyOptions) {
+    const isXApiKey = req.headers[strategyOptions.apiKeyHeader] || req.query[strategyOptions.apiKeyField]; 
+    
+    return shouldIgnoreRoute(req.originalUrl, req.method) && !isXApiKey;
+  }
+
   function innerAuthenticateMiddleware(req, res, next) {
     const jwtToken = getAuthToken(req);
     const decodedToken = decodeToken(jwtToken);
@@ -221,6 +227,16 @@ function Authenticator(options, logger) {
     };
 
     return verify("main", opts) || verify("secondary", opts);
+  }
+
+  // if this setup is used then the endpoint will be opened, please sanitize the content if needed
+  // if some auth attempt is done then authtentication will be performed
+  function optionalTokenSecured(req, res, next) {
+    if (isIgnoredRouteWithoutAuthAttempt(req, strategyOptions)) {
+      return next();
+    }
+    
+    return authenticateTokenMiddleware(req, res, next);
   }
 
   function authenticateTokenMiddleware(req, res, next, options = {}) {
@@ -455,7 +471,8 @@ function Authenticator(options, logger) {
     tokenSecuredWithoutAccount,
     tokenSecuredForBackoffice,
     tokenSecuredForAudiences,
-    customerTokenSecured
+    customerTokenSecured,
+    optionalTokenSecured
   };
 };
 
