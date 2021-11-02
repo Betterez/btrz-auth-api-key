@@ -3,8 +3,7 @@
 const assert = require("assert");
 const constants = require("./constants");
 const InternalAuthTokenProvider = require("./internalAuthTokenProvider");
-const request = require("request");
-const CircuitBreaker = require("btrz-circuit-breaker");
+const axios = require("axios");
 
 function Authenticator(options, logger) {
 
@@ -78,7 +77,6 @@ function Authenticator(options, logger) {
   }
 
   function getAuthInfo(apikey) {
-    const transport = new CircuitBreaker().wrapHttpTransport(request);
     const url = `${options.apiUrl}/${apikey}`;
     const payload = {
       headers: {
@@ -87,10 +85,10 @@ function Authenticator(options, logger) {
       body: {},
       json: true
     };    
-    return transport("GET", url, payload)
+    return axios.get(url, payload)
       .then((info) => {
-        preLoadedUser = info.user;
-        return info.application;
+        preLoadedUser = info.data.user;
+        return info.data.application;
       })
       .catch((err) => {
         logger.error("ERROR getting auth info::getAuthInfo::", err);

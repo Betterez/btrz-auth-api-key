@@ -4,7 +4,7 @@
   "description": "Betterez api authorization library",
   "main": "index.js",
   "scripts": {
-    "test": "node_modules/istanbul/lib/cli.js cover node_modules/mocha/bin/_mocha -- --ui bdd -t 5000 --exit",
+    "test": "node_modules/mocha/bin/_mocha --ui bdd -t 5000 --exit",
     "test-w": "node_modules/mocha/bin/mocha -w"
   },
   "repository": {
@@ -23,22 +23,20 @@
   },
   "homepage": "https://github.com/Betterez/btrz-auth-api-key",
   "dependencies": {
-    "btrz-simple-dao": "^4.1.0",
+    "axios": "^0.24.0",
+    "btrz-simple-dao": "^4.2.1",
     "jsonwebtoken": "^5.7.0",
     "passport": "^0.2.2",
-    "passport-localapikey-update": "^0.5.0",
-    "request": "^2.88.2",
-    "btrz-circuit-breaker": "1.1.0"
+    "passport-localapikey-update": "^0.5.0"
   },
   "devDependencies": {
     "body-parser": "1.19.0",
-    "chai": "4.2.0",
-    "chance": "1.0.18",
+    "chai": "4.3.4",
+    "chance": "1.1.8",
     "express": "4.17.1",
-    "istanbul": "^0.4.1",
-    "mocha": "^7.1.2",
-    "mockdate": "2.0.2",
-    "nock": "^12.0.3",
-    "supertest": "^3.4.2"
+    "mocha": "^9.1.3",
+    "mockdate": "3.0.5",
+    "nock": "^13.1.4",
+    "supertest": "^6.1.6"
   }
 }
