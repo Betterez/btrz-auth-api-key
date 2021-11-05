@@ -331,6 +331,14 @@ function Authenticator(options, logger) {
     };
   }
 
+  function validateJwtIfGiven(req, res, next) {
+    const jwtToken = getAuthToken(req);
+    if (!jwtToken) {
+      return next();
+    }
+    return authenticateTokenMiddleware(req, res, next);
+  }
+
   function findOneAdministrator(accountId) {
     const query = {
       accountId,
@@ -470,7 +478,8 @@ function Authenticator(options, logger) {
     tokenSecuredForBackoffice,
     tokenSecuredForAudiences,
     customerTokenSecured,
-    optionalTokenSecured
+    optionalTokenSecured,
+    validateJwtIfGiven
   };
 };
 
