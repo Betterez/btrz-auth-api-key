@@ -498,7 +498,6 @@ describe("Express integration", function () {
         .set("Accept", "application/json")
         .expect(200)
         .end(function (err, response) {
-          console.log("response",response);
           if (err) {
             return done(err);
           }
@@ -755,7 +754,6 @@ describe("Express integration", function () {
       });
 
       it("should use another administrator user to impersonate", () => {
-        console.log(fallbackAdministrator)
         return request(app)
           .get("/secured")
           .set("X-API-KEY", validKeyWithDeletedUser)
