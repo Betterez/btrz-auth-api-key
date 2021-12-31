@@ -3,6 +3,7 @@
 const assert = require("assert");
 const constants = require("./constants");
 const InternalAuthTokenProvider = require("./internalAuthTokenProvider");
+const {SuperUserAuthenticator} = require("./superUserAuthenticator");
 const axios = require("axios");
 
 function Authenticator(options, logger) {
@@ -485,5 +486,6 @@ function Authenticator(options, logger) {
 
 module.exports = {
   Authenticator,
-  InternalAuthTokenProvider
+  InternalAuthTokenProvider,
+  SuperUserAuthenticator
 };
