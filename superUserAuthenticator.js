@@ -20,16 +20,12 @@ function validSuperUserHash(superUser, hash) {
   return false;
 }
 
-class SuperUserAuthenticator {
-  constructor(dao, logger) {
-    assert(dao && dao.connect, "you must provide a SimpleDao");
-    assert(logger && logger.info && logger.error, "you must provide a logger");
-    this.dao = dao;
-    this.logger = logger;
-  }
+function SuperUserAuthenticator(dao, logger) {
+  assert(dao && dao.connect, "you must provide a SimpleDao");
+  assert(logger && logger.info && logger.error, "you must provide a logger");
 
-  superUserGenerateSignature(superUserId) {
-    return getSuperUser(this.dao, superUserId)
+  function superUserGenerateSignature(superUserId) {
+    return getSuperUser(dao, superUserId)
       .then((superUser) => {
         if (!superUser) {  
           return {superUserId: "", hash: ""};
@@ -42,18 +38,18 @@ class SuperUserAuthenticator {
           hash
         };
       }).catch((err) => {
-        this.logger.error("Error getting superuser", err);
+        logger.error("Error getting superuser", err);
         return {superUserId: "", hash: ""};
       });
   }
 
-  superUserMiddleware(req, res, next) {
+  function superUserMiddleware(req, res, next) {
     const superUserId = req && req.query ? req.query.superUserId : null;
     const hash = req && req.query ? req.query.superUserHash : null;
     if (!superUserId || !hash) {
       return next();
     }
-    return getSuperUser(this.dao, superUserId)
+    return getSuperUser(dao, superUserId)
       .then((superUser) => {
         if (validSuperUserHash(superUser, hash)) {
           req.superUser = superUser;
@@ -62,9 +58,14 @@ class SuperUserAuthenticator {
         return next();
       })
       .catch((err) => {
-        this.logger.error("Error getting superuser", err);
+        logger.error("Error getting superuser", err);
         next();
       });
+  }
+
+  return {
+    superUserGenerateSignature,
+    superUserMiddleware
   }
 }
 module.exports = {
