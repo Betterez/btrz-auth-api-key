@@ -33,30 +33,30 @@ describe("SuperUserAuthenticator", () => {
   });
 
   describe("#superUserGenerateSignature(superUserId)", () => {
-    it("should generate the hash for the user", async () => {
-      const {superUserId, hash} = await authenticator.superUserGenerateSignature(superUser._id.toString());
+    it("should generate the superUserHash for the user", async () => {
+      const {superUserId, superUserHash} = await authenticator.superUserGenerateSignature(superUser._id.toString());
       expect(superUserId).to.equal(superUser._id.toString());
-      expect(hash).to.be.a("string");
-      expect(hash.length).to.equal(64);
+      expect(superUserHash).to.be.a("string");
+      expect(superUserHash.length).to.equal(64);
     });
 
     it("should not fail but returns nothing if superUser not found", async () => {
-      const {superUserId, hash} = await authenticator.superUserGenerateSignature(SimpleDao.objectId().toString());
+      const {superUserId, superUserHash} = await authenticator.superUserGenerateSignature(SimpleDao.objectId().toString());
       expect(superUserId).to.equal("");
-      expect(hash).to.equal("");
+      expect(superUserHash).to.equal("");
     });
 
     it("should not fail but returns nothing if superUserId is invalid", async () => {
-      const {superUserId, hash} = await authenticator.superUserGenerateSignature("invalid");
+      const {superUserId, superUserHash} = await authenticator.superUserGenerateSignature("invalid");
       expect(superUserId).to.equal("");
-      expect(hash).to.equal("");
+      expect(superUserHash).to.equal("");
     });
   });
 
   describe("#superUserMiddleware(req, res, next)", () => {
     it("should set the superUser in the request if valid", async () => {
-      const {superUserId, hash} = await authenticator.superUserGenerateSignature(superUser._id.toString());
-      const req = {query: {superUserId, superUserHash: hash}};
+      const {superUserId, superUserHash} = await authenticator.superUserGenerateSignature(superUser._id.toString());
+      const req = {query: {superUserId, superUserHash}};
       const res = {};
       const next = () => {};
       await authenticator.superUserMiddleware(req, res, next);
@@ -64,7 +64,7 @@ describe("SuperUserAuthenticator", () => {
     });
 
     it("should not set the superUser in the request if invalid", async () => {
-      const {superUserId, hash} = await authenticator.superUserGenerateSignature(superUser._id.toString());
+      const {superUserId, superUserHash} = await authenticator.superUserGenerateSignature(superUser._id.toString());
       const req = {query: {superUserId, superUserHash: "invalid"}};
       const res = {};
       const next = () => {};
@@ -81,8 +81,8 @@ describe("SuperUserAuthenticator", () => {
     });
 
     it("should not set the superUser in the request if no superUserId", async () => {
-      const {superUserId, hash} = await authenticator.superUserGenerateSignature(superUser._id.toString());
-      const req = {query: {superUserHash: hash}};
+      const {superUserId, superUserHash} = await authenticator.superUserGenerateSignature(superUser._id.toString());
+      const req = {query: {superUserHash}};
       const res = {};
       const next = () => {};
       await authenticator.superUserMiddleware(req, res, next);
@@ -90,7 +90,7 @@ describe("SuperUserAuthenticator", () => {
     });
 
     it("should not set the superUser in the request if no superUserHash", async () => {
-      const {superUserId, hash} = await authenticator.superUserGenerateSignature(superUser._id.toString());
+      const {superUserId, superUserHash} = await authenticator.superUserGenerateSignature(superUser._id.toString());
       const req = {query: {superUserId}};
       const res = {};
       const next = () => {};
@@ -99,8 +99,8 @@ describe("SuperUserAuthenticator", () => {
     });
 
     it("should not set the superUser in the request if superUserId is not valid", async () => {
-      const {superUserId, hash} = await authenticator.superUserGenerateSignature(superUser._id.toString());
-      const req = {query: {superUserId: "hello", superUserHash: hash}};
+      const {superUserId, superUserHash} = await authenticator.superUserGenerateSignature(superUser._id.toString());
+      const req = {query: {superUserId: "hello", superUserHash}};
       const res = {};
       const next = () => {};
       await authenticator.superUserMiddleware(req, res, next);
@@ -108,8 +108,8 @@ describe("SuperUserAuthenticator", () => {
     });
 
     it("should not set the superUser in the request if superUserHash is not valid", async () => {
-      const {superUserId, hash} = await authenticator.superUserGenerateSignature(superUser._id.toString());
-      const req = {query: {superUserId: superUserId, superUserHash: 1}};
+      const {superUserId, superUserHash} = await authenticator.superUserGenerateSignature(superUser._id.toString());
+      const req = {query: {superUserId, superUserHash: 1}};
       const res = {};
       const next = () => {};
       await authenticator.superUserMiddleware(req, res, next);

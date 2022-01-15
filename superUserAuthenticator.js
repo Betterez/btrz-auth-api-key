@@ -11,9 +11,9 @@ function getSuperUser(dao, superUserId) {
     });
 }
 
-function validSuperUserHash(superUser, hash) {
+function validSuperUserHash(superUser, superUserHash) {
   if (superUser) {
-    return hash === crypto.createHash("sha256")
+    return superUserHash === crypto.createHash("sha256")
       .update(`${superUser._id}-${superUser.email}-${superUser.password}`)
       .digest("hex");
   }
@@ -28,30 +28,30 @@ function SuperUserAuthenticator(dao, logger) {
     return getSuperUser(dao, superUserId)
       .then((superUser) => {
         if (!superUser) {  
-          return {superUserId: "", hash: ""};
+          return {superUserId: "", superUserHash: ""};
         }
-        const hash = crypto.createHash("sha256")
+        const superUserHash = crypto.createHash("sha256")
           .update(`${superUser._id}-${superUser.email}-${superUser.password}`)
           .digest("hex");
         return {
           superUserId,
-          hash
+          superUserHash
         };
       }).catch((err) => {
         logger.error("Error getting superuser", err);
-        return {superUserId: "", hash: ""};
+        return {superUserId: "", superUserHash: ""};
       });
   }
 
   function superUserMiddleware(req, res, next) {
     const superUserId = req && req.query ? req.query.superUserId : null;
-    const hash = req && req.query ? req.query.superUserHash : null;
-    if (!superUserId || !hash) {
+    const superUserHash = req && req.query ? req.query.superUserHash : null;
+    if (!superUserId || !superUserHash) {
       return next();
     }
     return getSuperUser(dao, superUserId)
       .then((superUser) => {
-        if (validSuperUserHash(superUser, hash)) {
+        if (validSuperUserHash(superUser, superUserHash)) {
           req.superUser = superUser;
           return next();
         }
