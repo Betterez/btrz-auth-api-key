@@ -26,7 +26,7 @@
   },
   "homepage": "https://github.com/Betterez/btrz-auth-api-key",
   "dependencies": {
-    "axios": "^0.24.0",
+    "axios": "^0.25.0",
     "btrz-simple-dao": "^4.2.3",
     "jsonwebtoken": "^5.7.0",
     "passport": "^0.2.2",
