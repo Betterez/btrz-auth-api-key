@@ -31,9 +31,151 @@ describe("API auth integration tests", () => {
   
   let app = null;
   let options = null;
+  let auth = null;
 
-  before(() => {
-    options = {
+  describe("Using API Auth", () => {
+    beforeEach(() => {
+      options = {
+        "ignoredRoutes": [],
+        "db": {
+            "options": {
+              "database": "",
+              "username": "",
+              "password": ""
+            },
+            "uris": [
+            ]
+          },
+        internalAuthTokenSigningSecrets,
+        apiAuth: true,
+        apiUrl: chance.url(),
+        internalAuthTokenProvider: {
+          getToken: () => {
+            return validInternalToken;
+          }
+        }
+      };
+        
+      auth = new Authenticator(options, mockLogger);
+      internalAuthTokenProvider = new InternalAuthTokenProvider(options);
+      app = express();
+      app.use(auth.initialize({userProperty: "account"}));
+      app.use(auth.authenticate());
+      app.use(bodyParser.json());
+      app.get("/secured", auth.tokenSecured, (req, res) => {
+        res.status(200).json(req.user);
+      });
+    });
+  
+    it("should authenticate the user with api key and token", (done) => {
+      nock(options.apiUrl)
+        .get(`/${validKey}`)
+        .reply(200, {
+          application: applicationMock,
+          user: testFullUser
+        });
+  
+      request(app)
+        .get("/secured")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end((err) => {
+          if (err) {
+            return done(err);
+          }
+          done();
+        });
+    });
+  
+    it("should return 401 as the key was not found", (done) => {
+      nock(options.apiUrl)
+        .get("/wrongKey")
+        .reply(400);
+  
+      request(app)
+        .get("/secured")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(401)
+        .end((err) => {
+          if (err) {
+            return done(err);
+          }
+          done();
+        });
+    });
+  
+    it("should authenticate with token and set req.user to the token payload", (done) => {
+      nock(options.apiUrl)
+        .get(`/${validKey}`)
+        .reply(200, {
+          application: applicationMock,
+          user: testFullUser
+        });
+  
+      request(app)
+        .get("/secured")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end((err, response) => {
+          if (err) {
+            return done(err);
+          }
+          let user = JSON.parse(response.text).user;
+          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+          done();
+        });
+    });
+  
+    it("should authenticate with an api key and internal token", () => {
+      nock(options.apiUrl)
+        .get(`/${validKey}`)
+        .reply(200, {
+          application: applicationMock,
+          user: testFullUser
+        });
+  
+      return request(app)
+        .get("/secured")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validInternalToken}`)
+        .set("Accept", "application/json")
+        .expect(200);
+    });
+  
+    it(`should authenticate with an internal token, 
+        get the user from the API and assign properties of the user to req.user 
+        (excluding its hashed password)`, () => {
+      nock(options.apiUrl)
+        .get(`/${validKey}`)
+        .reply(200, {
+          application: applicationMock,
+          user: testFullUser
+        });
+  
+      return request(app)
+        .get("/secured")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validInternalToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .expect(({body}) => {
+          const expectedUserProperties = Object.keys(testFullUser).filter((prop) => prop !== "password");
+          expectedUserProperties.forEach((prop) => {
+            expect(body[prop]).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()})[prop]);
+          });
+        });
+    });
+  })
+
+  describe("Using Mongo Auth", () => {
+
+    let options = {
       "ignoredRoutes": [],
       "db": {
           "options": {
@@ -45,128 +187,145 @@ describe("API auth integration tests", () => {
           ]
         },
       internalAuthTokenSigningSecrets,
-      apiAuth: true,
-      apiUrl: chance.url(),
+      collection: {
+        name: "applications",
+        property: "key"
+      },
+      db: {
+        "options": {
+          "database": "btrzAuthApiKeyTest",
+          "username": "",
+          "password": ""
+        },
+        "uris": [
+          "127.0.0.1:27017"
+        ]
+      },
       internalAuthTokenProvider: {
         getToken: () => {
           return validInternalToken;
         }
       }
     };
-      
-    const auth = new Authenticator(options, mockLogger);
-    internalAuthTokenProvider = new InternalAuthTokenProvider(options);
-    app = express();
-    app.use(auth.initialize({userProperty: "account"}));
-    app.use(auth.authenticate());
-    app.use(bodyParser.json());
-    app.get("/secured", auth.tokenSecured, (req, res) => {
-      res.status(200).json(req.user);
+
+    const simpleDao = new SimpleDao(options);
+
+    beforeEach( async () => {
+      auth = new Authenticator(options, mockLogger);
+      internalAuthTokenProvider = new InternalAuthTokenProvider(options);
+      app = express();
+      app.use(auth.initialize({userProperty: "account"}));
+      app.use(auth.authenticate());
+      app.use(bodyParser.json());
+
+      const db = await simpleDao.connect();
+      await db.collection("applications")
+        .insertMany([applicationMock]);
+      await db.collection("users")
+        .insertMany([testFullUser]);
+        
     });
-  });
+  
+    afterEach( async() => {
+      const db = await simpleDao.connect();
+      await db.dropCollection("users");
+      await db.dropCollection("applications");
+    })
 
-  it("should authenticate the user with api key and token", (done) => {
-    nock(options.apiUrl)
-      .get(`/${validKey}`)
-      .reply(200, {
-        application: applicationMock,
-        user: testFullUser
+    it("should authenticate the user with api key and token", (done) => {
+      app.get("/secured", auth.tokenSecured, (req, res) => {
+        res.status(200).send(req.user);
       });
 
-    request(app)
-      .get("/secured")
-      .set("X-API-KEY", validKey)
-      .set("Authorization", `Bearer ${validToken}`)
-      .set("Accept", "application/json")
-      .expect(200)
-      .end((err) => {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
-  });
-
-  it("should return 401 as the key was not found", (done) => {
-    nock(options.apiUrl)
-      .get("/wrongKey")
-      .reply(400);
-
-    request(app)
-      .get("/secured")
-      .set("X-API-KEY", validKey)
-      .set("Authorization", `Bearer ${validToken}`)
-      .set("Accept", "application/json")
-      .expect(401)
-      .end((err) => {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
-  });
-
-  it("should authenticate with token and set req.user to the token payload", (done) => {
-    nock(options.apiUrl)
-      .get(`/${validKey}`)
-      .reply(200, {
-        application: applicationMock,
-        user: testFullUser
-      });
-
-    request(app)
-      .get("/secured")
-      .set("X-API-KEY", validKey)
-      .set("Authorization", `Bearer ${validToken}`)
-      .set("Accept", "application/json")
-      .expect(200)
-      .end((err, response) => {
-        if (err) {
-          return done(err);
-        }
-        let user = JSON.parse(response.text).user;
-        expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-        done();
-      });
-  });
-
-  it("should authenticate with an api key and internal token", () => {
-    nock(options.apiUrl)
-      .get(`/${validKey}`)
-      .reply(200, {
-        application: applicationMock,
-        user: testFullUser
-      });
-
-    return request(app)
-      .get("/secured")
-      .set("X-API-KEY", validKey)
-      .set("Authorization", `Bearer ${validInternalToken}`)
-      .set("Accept", "application/json")
-      .expect(200);
-  });
-
-  it(`should authenticate with an internal token, 
-      get the user from the API and assign properties of the user to req.user 
-      (excluding its hashed password)`, () => {
-    nock(options.apiUrl)
-      .get(`/${validKey}`)
-      .reply(200, {
-        application: applicationMock,
-        user: testFullUser
-      });    
-
-    return request(app)
-      .get("/secured")
-      .set("X-API-KEY", validKey)
-      .set("Authorization", `Bearer ${validInternalToken}`)
-      .set("Accept", "application/json")
-      .expect(200)
-      .expect(({body}) => {
-        const expectedUserProperties = Object.keys(testFullUser).filter((prop) => prop !== "password");
-        expectedUserProperties.forEach((prop) => {
-          expect(body[prop]).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()})[prop]);
+      request(app)
+        .get("/secured")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end((err) => {
+          if (err) {
+            return done(err);
+          }
+          done();
         });
+    });
+  
+    it("should return 401 as the key was not found", (done) => {
+      request(app)
+        .get("/secured")
+        .set("X-API-KEY", "invalid")
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(401)
+        .end((err) => {
+          if (err) {
+            return done(err);
+          }
+          done();
+        });
+    });
+  
+    it("should authenticate with token and set req.user to the token payload", (done) => {
+  
+      app.get("/secured", auth.tokenSecured, (req, res) => {
+        expect(req.user.user._id).to.be.eql(testFullUser._id.toString());
+        res.status(200).send(req.user);
       });
-  });
+      
+      request(app)
+        .get("/secured")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end((err, response) => {
+          if (err) {
+            return done(err);
+          }
+          let user = JSON.parse(response.text).user;
+          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+          done();
+        });
+    });
+  
+    it("should authenticate with an api key and internal token", () => {
+
+      app.get("/secured", auth.tokenSecured, (req, res) => {
+        expect(req.user._id).to.be.eql(testFullUser._id.toString());
+        res.status(200).send(req.user);
+      });
+  
+      return request(app)
+        .get("/secured")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validInternalToken}`)
+        .set("Accept", "application/json")
+        .expect(200);
+    });
+  
+    it(`should authenticate with an internal token, 
+        get the user from the API and assign properties of the user to req.user 
+        (excluding its hashed password)`, () => {   
+
+      app.get("/secured", auth.tokenSecured, (req, res) => {
+        expect(req.user._id).to.be.eql(testFullUser._id.toString());
+        res.status(200).send(req.user);
+      });
+  
+      return request(app)
+        .get("/secured")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validInternalToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .expect(({body}) => {
+          const expectedUserProperties = Object.keys(testFullUser).filter((prop) => prop !== "password");
+          expectedUserProperties.forEach((prop) => {
+            expect(body[prop]).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()})[prop]);
+          });
+        });
+    });
+  })
+  
 });

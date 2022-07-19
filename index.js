@@ -405,6 +405,7 @@ function Authenticator(options, logger) {
 
           if (!req.user) {
             req.user = Object.assign({}, user, tokenPayload);
+            req.user._id = req.user._id.toString();
           }
           return next();
         })
