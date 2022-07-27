@@ -26,20 +26,20 @@
   },
   "homepage": "https://github.com/Betterez/btrz-auth-api-key",
   "dependencies": {
-    "axios": "^0.27.1",
+    "axios": "^0.27.2",
     "btrz-simple-dao": "^4.3.0",
-    "jsonwebtoken": "^5.7.0",
-    "passport": "^0.5.2",
+    "jsonwebtoken": "8.5.1",
+    "passport": "^0.6.0",
     "passport-localapikey-update": "^0.6.0"
   },
   "devDependencies": {
     "body-parser": "1.20.0",
     "chai": "4.3.6",
     "chance": "1.1.8",
-    "express": "4.18.0",
-    "mocha": "9.2.2",
+    "express": "4.18.1",
+    "mocha": "10.0.0",
     "mockdate": "3.0.5",
-    "nock": "13.2.4",
-    "supertest": "6.2.2"
+    "nock": "13.2.9",
+    "supertest": "6.2.4"
   }
 }
