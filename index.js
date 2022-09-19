@@ -5,6 +5,7 @@ const constants = require("./constants");
 const InternalAuthTokenProvider = require("./internalAuthTokenProvider");
 const {SuperUserAuthenticator} = require("./superUserAuthenticator");
 const axios = require("axios");
+const audiences = require("./audiences.js")
 
 function Authenticator(options, logger) {
 
@@ -419,7 +420,7 @@ function Authenticator(options, logger) {
         const userTokenVerifyOptions = {
           algorithms: ["HS512"],
           subject: "account_user_sign_in",
-          issuer: constants.USER_AUTH_TOKEN_ISSUER,
+          issuer: constants.USER_AUTH_TOKEN_ISSUER
         };
 
         if (audience) {
@@ -488,5 +489,6 @@ function Authenticator(options, logger) {
 module.exports = {
   Authenticator,
   InternalAuthTokenProvider,
-  SuperUserAuthenticator
+  SuperUserAuthenticator,
+  audiences
 };
