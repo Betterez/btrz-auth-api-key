@@ -11,7 +11,7 @@ describe("Express integration", function () {
     SimpleDao = require("btrz-simple-dao").SimpleDao,
     mockLogger = { info() { }, error() { } },
     constants = require("../constants"),
-    { Authenticator, InternalAuthTokenProvider } = require("../"),
+    { Authenticator, InternalAuthTokenProvider, audiences } = require("../"),
     app,
     testKey = "test-api-key",
     validKey = "72ed8526-24a6-497f-8949-ec7ed6766aaf",
@@ -26,12 +26,13 @@ describe("Express integration", function () {
     testUser = { _id: chance.hash(), name: "Test", last: "User" },
     testFullUser = { _id: SimpleDao.objectId(), name: "Test", last: "User", display: "Testing", password: chance.hash(), deleted: false },
     deletedUser = { _id: SimpleDao.objectId(), deleted: true },
-    userTokenSigningOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in" },
+    userTokenSigningOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in"},
     internalTokenSigningOptions = {
       algorithm: "HS512", expiresIn: "2 minutes",
-      issuer: constants.INTERNAL_AUTH_TOKEN_ISSUER, audience: "betterez-app"
+      issuer: constants.INTERNAL_AUTH_TOKEN_ISSUER,
+      audience: "betterez-app"
     },
-    validToken = jwt.sign({ user: testFullUser }, privateKey, userTokenSigningOptions),
+    validToken = jwt.sign({ user: testFullUser, aud: "betterez-app"}, privateKey, userTokenSigningOptions),
     validBackofficeToken = jwt.sign({ user: testFullUser, aud: "betterez-app" }, privateKey, userTokenSigningOptions),
     validBackofficeTokenForOtherApp = jwt.sign({ user: testFullUser, aud: "other-app" }, privateKey, userTokenSigningOptions),
     validInternalToken = jwt.sign({}, internalAuthTokenSigningSecrets.main, internalTokenSigningOptions),
@@ -102,10 +103,10 @@ describe("Express integration", function () {
     app.post("/ignored-get-put", function (req, res) {
       res.status(200).json(req.account);
     });
-    app.get("/secured", auth.tokenSecured, function (req, res) {
+    app.get("/secured", auth.tokenSecuredForAudiences([audiences.BETTEREZ_APP]), function (req, res) {
       res.status(200).json(req.user);
     });
-    app.get("/ignoredsecure", auth.tokenSecured, function (req, res) {
+    app.get("/ignoredsecure", auth.tokenSecuredForAudiences([audiences.BETTEREZ_APP]), function (req, res) {
       res.status(200).json(req.account);
     });
     app.get("/ignored-and-secure", auth.optionalTokenSecured, function (req, res) {
@@ -132,7 +133,7 @@ describe("Express integration", function () {
     app.get("/gimmeTokens", function (req, res) {
       res.status(200).json(req.tokens);
     });
-    app.get("/gimmeTokensSecured", auth.tokenSecured, function (req, res) {
+    app.get("/gimmeTokensSecured", auth.tokenSecuredForAudiences([audiences.BETTEREZ_APP]), function (req, res) {
       res.status(200).json(req.tokens);
     });
     app.get("/unsecureWithUser", function (req, res) {
@@ -806,7 +807,7 @@ describe("Express integration", function () {
       request(app)
         .get("/backoffice?channel=backoffice")
         .set("X-API-KEY", validKey)
-        .set("Authorization", `Bearer ${validToken}`)
+        .set("Authorization", `Bearer ${validCustomerToken}`)
         .set("Accept", "application/json")
         .expect(401)
         .end(function (err) {
@@ -821,7 +822,7 @@ describe("Express integration", function () {
       request(app)
         .get("/backoffice?channel=agency-backoffice")
         .set("X-API-KEY", validKey)
-        .set("Authorization", `Bearer ${validToken}`)
+        .set("Authorization", `Bearer ${validCustomerToken}`)
         .set("Accept", "application/json")
         .expect(401)
         .end(function (err) {
@@ -836,7 +837,7 @@ describe("Express integration", function () {
       request(app)
         .get("/backoffice?channels=websales,backoffice")
         .set("X-API-KEY", validKey)
-        .set("Authorization", `Bearer ${validToken}`)
+        .set("Authorization", `Bearer ${validCustomerToken}`)
         .set("Accept", "application/json")
         .expect(401)
         .end(function (err) {
@@ -851,7 +852,7 @@ describe("Express integration", function () {
       request(app)
         .get("/backoffice?channels=websales,agency-backoffice")
         .set("X-API-KEY", validKey)
-        .set("Authorization", `Bearer ${validToken}`)
+        .set("Authorization", `Bearer ${validCustomerToken}`)
         .set("Accept", "application/json")
         .expect(401)
         .end(function (err) {
@@ -968,7 +969,7 @@ describe("Express integration", function () {
         .post("/backoffice")
         .send({channel: "backoffice"})
         .set("X-API-KEY", validKey)
-        .set("Authorization", `Bearer ${validToken}`)
+        .set("Authorization", `Bearer ${validCustomerToken}`)
         .set("Accept", "application/json")
         .expect(401)
         .end(function (err) {
@@ -984,7 +985,7 @@ describe("Express integration", function () {
         .post("/backoffice")
         .send({channel: "agency-Backoffice"})
         .set("X-API-KEY", validKey)
-        .set("Authorization", `Bearer ${validToken}`)
+        .set("Authorization", `Bearer ${validCustomerToken}`)
         .set("Accept", "application/json")
         .expect(401)
         .end(function (err) {
@@ -1000,7 +1001,7 @@ describe("Express integration", function () {
         .post("/backoffice")
         .send({channels: ["any", "backOffice"]})
         .set("X-API-KEY", validKey)
-        .set("Authorization", `Bearer ${validToken}`)
+        .set("Authorization", `Bearer ${validCustomerToken}`)
         .set("Accept", "application/json")
         .expect(401)
         .end(function (err) {
@@ -1127,7 +1128,7 @@ describe("Express integration", function () {
         request(app)
           .get("/backoffice?channel=backoffice")
           .set("X-API-KEY", validKey)
-          .set("Authorization", `Bearer ${validToken}`)
+          .set("Authorization", `Bearer ${validCustomerToken}`)
           .set("Accept", "application/json")
           .expect(401)
           .end(function (err) {

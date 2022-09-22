@@ -10,7 +10,7 @@ describe("API auth integration tests", () => {
   const mockLogger = {info() {}, error() {}};
   const constants = require("../constants");
   const nock = require("nock");
-  const {Authenticator, InternalAuthTokenProvider} = require("..");
+  const {Authenticator, InternalAuthTokenProvider, audiences} = require("..");
   const validKey = "72ed8526-24a6-497f-8949-ec7ed6766aaf";
   const  privateKey = "492a97f3-597f-4b54-84f5-f8ad3eb6ee36";
   const  internalAuthTokenSigningSecrets = {
@@ -18,7 +18,7 @@ describe("API auth integration tests", () => {
     secondary: chance.hash()
   };
   const testFullUser = {_id: SimpleDao.objectId(), name: "Test", last: "User", display: "Testing", password: chance.hash(), deleted: false};
-  const userTokenSigningOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in"};
+  const userTokenSigningOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in", audience: "betterez-app"};
   const internalTokenSigningOptions = {
     algorithm: "HS512", 
     expiresIn: "2 minutes",
@@ -62,7 +62,7 @@ describe("API auth integration tests", () => {
       app.use(auth.initialize({userProperty: "account"}));
       app.use(auth.authenticate());
       app.use(bodyParser.json());
-      app.get("/secured", auth.tokenSecured, (req, res) => {
+      app.get("/secured", auth.tokenSecuredForAudiences([audiences.BETTEREZ_APP]), (req, res) => {
         res.status(200).json(req.user);
       });
     });
@@ -233,7 +233,7 @@ describe("API auth integration tests", () => {
     })
 
     it("should authenticate the user with api key and token", (done) => {
-      app.get("/secured", auth.tokenSecured, (req, res) => {
+      app.get("/secured", auth.tokenSecuredForAudiences([audiences.BETTEREZ_APP]), (req, res) => {
         res.status(200).send(req.user);
       });
 
@@ -268,7 +268,7 @@ describe("API auth integration tests", () => {
   
     it("should authenticate with token and set req.user to the token payload", (done) => {
   
-      app.get("/secured", auth.tokenSecured, (req, res) => {
+      app.get("/secured", auth.tokenSecuredForAudiences([audiences.BETTEREZ_APP]), (req, res) => {
         expect(req.user.user._id).to.be.eql(testFullUser._id.toString());
         res.status(200).send(req.user);
       });
@@ -291,7 +291,7 @@ describe("API auth integration tests", () => {
   
     it("should authenticate with an api key and internal token", () => {
 
-      app.get("/secured", auth.tokenSecured, (req, res) => {
+      app.get("/secured", auth.tokenSecuredForAudiences([audiences.BETTEREZ_APP]), (req, res) => {
         expect(req.user._id).to.be.eql(testFullUser._id.toString());
         res.status(200).send(req.user);
       });
@@ -308,7 +308,7 @@ describe("API auth integration tests", () => {
         get the user from the API and assign properties of the user to req.user 
         (excluding its hashed password)`, () => {   
 
-      app.get("/secured", auth.tokenSecured, (req, res) => {
+      app.get("/secured", auth.tokenSecuredForAudiences([audiences.BETTEREZ_APP]), (req, res) => {
         expect(req.user._id).to.be.eql(testFullUser._id.toString());
         res.status(200).send(req.user);
       });

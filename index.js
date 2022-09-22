@@ -476,7 +476,7 @@ function Authenticator(options, logger) {
     authenticate: function () {
       return innerAuthenticateMiddleware;
     },
-    tokenSecured,
+    // tokenSecured,
     tokenSecuredWithoutAccount,
     tokenSecuredForBackoffice,
     tokenSecuredForAudiences,
