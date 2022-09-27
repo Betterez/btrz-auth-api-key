@@ -324,7 +324,7 @@ function Authenticator(options, logger) {
         }
         const notAuthenticated = !req.user,
           wrongAudience = audiences.indexOf(req.user.aud) === -1;
-        if (notAuthenticated || wrongAudience) {
+        if (notAuthenticated || (wrongAudience && !req.internalUser)) {
           return res.status(401).send("Unauthorized");
         } else {
           return next();
