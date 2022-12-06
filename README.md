@@ -154,7 +154,15 @@ Usage:
         ...
     });
 
+#### auth.tokenSecuredForInternal
 
+Works very similar to the `auth.tokenSecuredWithoutAccount` but is only valid when the Bearer token is a valid internal token.
+ 
+Usage:
+
+    app.get("/secured", auth.tokenSecuredForInternal, function (req, res) {
+        ...
+    });
 #### auth.tokenSecuredForAudiences
 
 This middleware works just like tokenSecured, but allows to pass a list of audiences. The token will be validated as usual, and will be valid if it is issued for at least one of the audiences listed.

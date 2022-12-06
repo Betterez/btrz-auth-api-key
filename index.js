@@ -313,6 +313,20 @@ function Authenticator(options, logger) {
     return authenticateTokenMiddleware(req, res, next, {bypassAccount: true});
   }
 
+  function tokenSecuredForInternal(req, res, next) {
+    return authenticateTokenMiddleware(req, res, function (err) {
+      if (err) {
+        return next(err);
+      }
+      if (isTestToken(getAuthToken(req))) {
+        return next();
+      }
+
+      if (!req.internalUser) return res.status(401).send("Unauthorized");
+      return next();
+    }, {bypassAccount: true});
+  }
+
   function tokenSecuredForAudiences(audiences) {
     return function (req, res, next) {
       return authenticateTokenMiddleware(req, res, function (err) {
@@ -482,7 +496,8 @@ function Authenticator(options, logger) {
     tokenSecuredForAudiences,
     customerTokenSecured,
     optionalTokenSecured,
-    validateJwtIfGiven
+    validateJwtIfGiven,
+    tokenSecuredForInternal
   };
 };
 
