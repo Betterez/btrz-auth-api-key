@@ -41,10 +41,30 @@ describe("Express integration", function () {
     options,
     simpleDao;
 
+  const keyWithoutChannels = chance.guid();
+  const privateKeyWithoutChannels = chance.guid();
+  const application = {
+    "_id": SimpleDao.objectId("608808b2481ef95330d4b98e"),
+    "accountId": "595f9c7007ee12686d000032",
+    "userId": "608808b2481ef95330d4b98e",
+    "key": "6e720915-e3ff-4dba-8a10-bc1ae4406fd4",
+    "privateKey": "123ac3f1-619f-4f33-b903-97241c4a79b6",
+    "name": "signon",
+    "description": "",
+    "internal": false,
+    "premium": [],
+    channels: ["backoffice", "agency-backoffice"]
+  };
+  const validApplicationToken = jwt.sign(application, application.privateKey, userTokenSigningOptions);
+
+  const validApplicationTokenWithoutChannels = jwt.sign({}, privateKeyWithoutChannels, userTokenSigningOptions);
+  
   const apiKeys = [
     {accountId: chance.hash(), key: validKey, privateKey: privateKey, userId: testFullUser._id.toString()},
     {accountId: chance.hash(), key: validKeyWithNoUser, privateKey: chance.guid(), userId: SimpleDao.objectId().toString()},
     {accountId: chance.hash(), key: validKeyWithDeletedUser, privateKey: chance.guid(), userId: deletedUser._id.toString()},
+    {...application},
+    {accountId: chance.hash(), key: keyWithoutChannels, privateKey: privateKeyWithoutChannels, userId: deletedUser._id.toString(), channles: []}
   ];
 
   beforeEach(async () => {
@@ -1103,6 +1123,59 @@ describe("Express integration", function () {
           done();
         });
     });
+
+    it("should authorize if body requests channel=agency-backoffice and token is from application that support the channel", function (done) {
+      request(app)
+        .post("/backoffice")
+        .send({channel: "agency-backoffice"})
+        .set("X-API-KEY", application.key)
+        .set("Authorization", `Bearer ${validApplicationToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let app = JSON.parse(response.text);
+          expect(app._id).to.equal(application._id.toString())
+          done();
+        });
+    });
+
+    it("should authorize if body requests channel=backoffice and token is from application that support the channel", function (done) {
+      request(app)
+        .post("/backoffice")
+        .send({channel: "backoffice"})
+        .set("X-API-KEY", application.key)
+        .set("Authorization", `Bearer ${validApplicationToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+          let app = JSON.parse(response.text);
+          expect(app._id).to.equal(application._id.toString())
+          done();
+        });
+    });
+
+    it("should not authorize if body requests channels backoffice and the app does not support the channel", function (done) {
+      request(app)
+        .post("/backoffice")
+        .send({channels: ["backoffice"]})
+        .set("X-API-KEY", keyWithoutChannels)
+        .set("Authorization", `Bearer ${validApplicationTokenWithoutChannels}`)
+        .set("Accept", "application/json")
+        .expect(401)
+        .end(function (err) {
+          if (err) {
+            return done(err);
+          }
+          done();
+        });
+    });
+
 
     it("should authorize if body requests channels contain backoffice and token is for the internal app", function (done) {
       request(app)

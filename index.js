@@ -56,8 +56,16 @@ function Authenticator(options, logger) {
     return (token && token === options.testToken);
   }
 
-  function isCorrectBackOfficeAudience(audience) {
-    return Array.isArray(options.audiences) ? options.audiences.indexOf(audience) > -1 : audience === "betterez-app";
+  function isCorrectBackOfficeAudience(audience, application) {
+    const userHasBackofficeAudience = Array.isArray(options.audiences) ? options.audiences.indexOf(audience) > -1 : audience === "betterez-app";
+    if (!userHasBackofficeAudience) {
+      return isCorrectBackOfficeApplication(application);
+    }
+    return userHasBackofficeAudience;
+  }
+
+  function isCorrectBackOfficeApplication(application) {
+    return application && Array.isArray(application.channels) && (application.channels.includes("backoffice") || application.channels.includes("agency-backoffice"));
   }
 
   function useDb(apikey) {
@@ -294,7 +302,7 @@ function Authenticator(options, logger) {
         if (isTestToken(getAuthToken(req))) {
           return next();
         }
-        if (!req.user || !isCorrectBackOfficeAudience(req.user.aud)) {
+        if (!req.user || !isCorrectBackOfficeAudience(req.user.aud, req.application)) {
           return res.status(401).send("Unauthorized");
         } else {
           return next();
