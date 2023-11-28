@@ -1418,6 +1418,24 @@ describe("Express integration", function () {
         done();
       });
     });
+
+    it("should authorize for internal app that has channel backoffice as accepted", function (done) {
+      request(app)
+        .get("/allowOnlyCustomerOrBackoffice")
+        .set("X-API-KEY", application.key)
+        .set("Authorization", `Bearer ${validApplicationToken}`)
+        .set("Accept", "application/json")
+        .expect(200)
+        .end(function (err, response) {
+          if (err) {
+            return done(err);
+          }
+
+          let app = JSON.parse(response.text);
+          expect(app._id).to.equal(application._id.toString())
+          done();
+        });
+    })
   });
 
   describe("internalAuthTokenProvider", () => {

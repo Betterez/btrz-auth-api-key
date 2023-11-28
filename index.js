@@ -6,6 +6,7 @@ const InternalAuthTokenProvider = require("./internalAuthTokenProvider");
 const {SuperUserAuthenticator} = require("./superUserAuthenticator");
 const axios = require("axios");
 const audiences = require("./audiences.js")
+const allAudience = audiences;
 
 function Authenticator(options, logger) {
 
@@ -347,6 +348,9 @@ function Authenticator(options, logger) {
         const notAuthenticated = !req.user,
           wrongAudience = audiences.indexOf(req.user.aud) === -1;
         if (notAuthenticated || (wrongAudience && !req.internalUser)) {
+          if (audiences.includes(allAudience.BETTEREZ_APP) && isCorrectBackOfficeApplication(req.application)) {
+            return next();
+          }
           return res.status(401).send("Unauthorized");
         } else {
           return next();
