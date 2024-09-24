@@ -39,16 +39,15 @@ describe("API auth integration tests", () => {
   describe("Using API Auth", () => {
     beforeEach(() => {
       options = {
-        "ignoredRoutes": [],
-        "db": {
-            "options": {
-              "database": "",
-              "username": "",
-              "password": ""
-            },
-            "uris": [
-            ]
+        ignoredRoutes: [],
+        db: {
+          options: {
+            database: "",
+            username: "",
+            password: ""
           },
+          uris: []
+        },
         internalAuthTokenSigningSecrets,
         apiAuth: true,
         apiUrl: chance.url(),
