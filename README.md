@@ -132,21 +132,9 @@ The `collection.name` and `collection.property` will be used to try to find one 
 
 The secret keys that are used to sign the auth tokens used for internal service-to-service calls.  Two keys are provided, to allow for key rotation.
 
-#### auth.tokenSecuredWithoutAccount
-
-This middleware, when used on a route definition, validates the request includes an internal Bearer Token that is a valid JSON Web Token as issued by the authorization endpoint on btrz-api-client.
-
-With this middleware you can authenticate an internal token without using `x_api_key` adding the route to the `ignoredRoutes` list. The account and user data related to the `x_api_key` will be ignored, only validating the internal token. Note: the route will be ignored only for internal token, if the request includes a user token this middleware will work the same as auth.tokenSecured.
-
-Usage:
-
-    app.get("/secured", auth.tokenSecuredWithoutAccount, function (req, res) {
-        ...
-    });
-
 #### auth.tokenSecuredForInternal
 
-Works very similar to the `auth.tokenSecuredWithoutAccount` but is only valid when the Bearer token is a valid internal token.
+This middleware, when used on a route definition, validates the request includes a Bearer Token that is a valid JSON Web Token as issued by an internal Betterez service (not necessarily btrz-api-accounts).  This validates that the incoming request is the result of a service-to-service call.
  
 Usage:
 

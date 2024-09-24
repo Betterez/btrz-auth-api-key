@@ -82,7 +82,6 @@ describe("Express integration", function () {
         "^/ignoredsecure",
         "^/ignored-and-secure",
         "^/say-no$",
-        "^/route/without/verify/account",
         "^/route/for/internal/use/only",
         {route: "^/ignored-get-put", methods: ["GET", "PUT"]}
       ],
@@ -142,9 +141,6 @@ describe("Express integration", function () {
       res.status(200).json(req.user || {message: "no token"});
     });
     app.get("/customer", auth.customerTokenSecured, function (req, res) {
-      res.status(200).json(req.user || {});
-    });
-    app.get("/route/without/verify/account", auth.tokenSecuredWithoutAccount, function (req, res) {
       res.status(200).json(req.user || {});
     });
 
@@ -759,37 +755,6 @@ describe("Express integration", function () {
           .set("Accept", "application/json")
           .expect(401);
       });
-    });
-
-    it("should authenticate with an internal token", () => {
-      return request(app)
-        .get("/route/without/verify/account")
-        .set("Authorization", `Bearer ${validInternalToken}`)
-        .set("Accept", "application/json")
-        .expect(200);
-    });
-
-    it("should authenticate with an internal token when 'Bearer' isn't specified", () => {
-      return request(app)
-        .get("/route/without/verify/account")
-        .set("Authorization", `${validInternalToken}`)
-        .set("Accept", "application/json")
-        .expect(200);
-    });
-
-    it("should return unauthorized if internal token is not given", () => {
-      return request(app)
-        .get("/route/without/verify/account")
-        .set("Accept", "application/json")
-        .expect(401);
-    });
-
-    it("should return unauthorized if internal token is not valid", () => {
-      return request(app)
-        .get("/route/without/verify/account")
-        .set("Authorization", "Bearer not_valid_token")
-        .set("Accept", "application/json")
-        .expect(401);
     });
 
     it("should fail because there's no administrator user enabled to impersonate", () => {

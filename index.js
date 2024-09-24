@@ -314,10 +314,6 @@ function Authenticator(options, logger) {
     return authenticateTokenMiddleware(req, res, next, {audience: "customer"});
   }
 
-  function tokenSecuredWithoutAccount(req, res, next) {
-    return authenticateTokenMiddleware(req, res, next, {bypassAccount: true});
-  }
-
   function tokenSecuredForInternal(req, res, next) {
     return authenticateTokenMiddleware(req, res, function (err) {
       if (err) {
@@ -498,7 +494,6 @@ function Authenticator(options, logger) {
     authenticate: function () {
       return innerAuthenticateMiddleware;
     },
-    tokenSecuredWithoutAccount,
     tokenSecuredForBackoffice,
     tokenSecuredForAudiences,
     customerTokenSecured,
