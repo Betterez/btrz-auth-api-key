@@ -132,16 +132,6 @@ The `collection.name` and `collection.property` will be used to try to find one 
 
 The secret keys that are used to sign the auth tokens used for internal service-to-service calls.  Two keys are provided, to allow for key rotation.
 
-#### auth.tokenSecured
-
-This middleware, when used on a route definition, validates the request includes a Bearer Token that is a valid JSON Web Token as issued by the authorization endpoint on btrz-api-accounts.
-
-Usage:
-
-    app.get("/secured", auth.tokenSecured, function (req, res) {
-        ...
-    });
-
 #### auth.tokenSecuredWithoutAccount
 
 This middleware, when used on a route definition, validates the request includes an internal Bearer Token that is a valid JSON Web Token as issued by the authorization endpoint on btrz-api-client.
@@ -163,9 +153,10 @@ Usage:
     app.get("/secured", auth.tokenSecuredForInternal, function (req, res) {
         ...
     });
+
 #### auth.tokenSecuredForAudiences
 
-This middleware works just like tokenSecured, but allows to pass a list of audiences. The token will be validated as usual, and will be valid if it is issued for at least one of the audiences listed.
+This middleware, when used on a route definition, validates the request includes a Bearer Token that is a valid JSON Web Token as issued by the authorization endpoint on btrz-api-accounts.  The token will be validated as usual, and will be valid if it is issued for at least one of the audiences listed.
 
 In this example, the route will be valid for customers or backoffice users:
 

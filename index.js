@@ -268,10 +268,6 @@ function Authenticator(options, logger) {
     processJwtToken(req, res, jwtToken, next, options);
   }
 
-  function tokenSecured(req, res, next) {
-    return authenticateTokenMiddleware(req, res, next);
-  }
-
   //if channel 'backoffice' or 'agency-backoffice' is requested in the body or querystring,
   //checks request has a valid token for backoffice ('betterez-app' internal application)
   function tokenSecuredForBackoffice(req, res, next) {
@@ -502,7 +498,6 @@ function Authenticator(options, logger) {
     authenticate: function () {
       return innerAuthenticateMiddleware;
     },
-    // tokenSecured,
     tokenSecuredWithoutAccount,
     tokenSecuredForBackoffice,
     tokenSecuredForAudiences,
