@@ -3,7 +3,7 @@
   // Documentation: http://www.jshint.com/docs/options/
   "browser": false,
   "bitwise": true,
-  "esnext": true,
+  "esversion": 9,
   "globals": {
     "exports"    : false
   },

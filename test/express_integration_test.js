@@ -1,3 +1,5 @@
+"use strict";
+
 describe("Express integration", function () {
 
   let request = require("supertest"),
@@ -132,7 +134,7 @@ describe("Express integration", function () {
     });
     app.get("/ignored-and-secure", auth.optionalTokenSecured, function (req, res) {
       res.status(200).json(req.account);
-    });    
+    });
     app.get("/backoffice", auth.tokenSecuredForBackoffice, function (req, res) {
       res.status(200).json(req.user || {message: "no token"});
     });
@@ -155,7 +157,7 @@ describe("Express integration", function () {
     });
     app.get("/validate-jwt-if-given", auth.validateJwtIfGiven, function (req, res) {
       res.status(200).json(req.user || {});
-    }); 
+    });
     app.get("/gimmeTokens", function (req, res) {
       res.status(200).json(req.tokens);
     });
@@ -246,7 +248,7 @@ describe("Express integration", function () {
         }
         done();
       });
-  });  
+  });
 
   it("should return 401 if no X-API-KEY is present and method POST for route is secured", function (done) {
     request(app)
@@ -442,8 +444,8 @@ describe("Express integration", function () {
           }
           done();
         });
-    });  
-  
+    });
+
     it("should return 401 if xapikey is invalid for an optional token secured route", function (done) {
       request(app)
         .get("/ignored-and-secure")
@@ -458,7 +460,7 @@ describe("Express integration", function () {
           done();
         });
     });
-    
+
     it("should return 401 if jwttoken is invalid for an optional token secured route", function (done) {
       request(app)
         .get("/ignored-and-secure")
@@ -473,7 +475,7 @@ describe("Express integration", function () {
           done();
         });
     });
-    
+
     it("should return 401 if jwttoken is ommited for an optional token secured route", function (done) {
       request(app)
         .get("/ignored-and-secure")
@@ -486,8 +488,8 @@ describe("Express integration", function () {
           }
           done();
         });
-    });  
-  
+    });
+
     it("should return 401 if xapikey is ommited for an optional token secured route", function (done) {
       request(app)
         .get("/ignored-and-secure")
@@ -501,7 +503,7 @@ describe("Express integration", function () {
           done();
         });
     });
-  
+
     it("should return 200 if no auth is attempted, the route is ignored and an optional token secured setup is used", function (done) {
       request(app)
         .get("/ignored-and-secure")
@@ -515,7 +517,7 @@ describe("Express integration", function () {
         });
     });
   })
-  
+
   describe("#validate-jwt-if-given", () => {
     it("should return 200 if a valid jwttoken is sent", function (done) {
       request(app)
@@ -530,7 +532,7 @@ describe("Express integration", function () {
           }
           done();
         });
-    }); 
+    });
 
     it("should authenticate with token and set req.user to the token payload if a valid jwttoken is sent", function (done) {
       request(app)
@@ -561,7 +563,7 @@ describe("Express integration", function () {
           }
           done();
         });
-    });  
+    });
 
     it("should return 401 if an invalid jwttoken is sent", function (done) {
       request(app)
@@ -575,7 +577,7 @@ describe("Express integration", function () {
           }
           done();
         });
-    }); 
+    });
   })
 
   it("should authenticate the user with api key and token", function (done) {
@@ -734,7 +736,7 @@ describe("Express integration", function () {
           .set("Accept", "application/json")
           .expect(200);
       });
-  
+
       it("should authenticate with an internal token when 'Bearer' isn't specified", () => {
         return request(app)
           .get("/route/for/internal/use/only")
@@ -742,14 +744,14 @@ describe("Express integration", function () {
           .set("Accept", "application/json")
           .expect(200);
       });
-  
+
       it("should return unauthorized if internal token is not given", () => {
         return request(app)
           .get("/route/for/internal/use/only")
           .set("Accept", "application/json")
           .expect(401);
       });
-  
+
       it("should return unauthorized if internal token is not valid", () => {
         return request(app)
           .get("/route/for/internal/use/only")
@@ -1138,7 +1140,7 @@ describe("Express integration", function () {
             return done(err);
           }
           let app = JSON.parse(response.text);
-          expect(app._id).to.equal(application._id.toString())
+          expect(app._id).to.equal(application._id.toString());
           done();
         });
     });
@@ -1156,7 +1158,7 @@ describe("Express integration", function () {
             return done(err);
           }
           let app = JSON.parse(response.text);
-          expect(app._id).to.equal(application._id.toString())
+          expect(app._id).to.equal(application._id.toString());
           done();
         });
     });
@@ -1433,7 +1435,7 @@ describe("Express integration", function () {
           }
 
           let app = JSON.parse(response.text);
-          expect(app._id).to.equal(application._id.toString())
+          expect(app._id).to.equal(application._id.toString());
           done();
         });
     })
@@ -1501,8 +1503,6 @@ describe("Express integration", function () {
     });
 
     it("should add only x-api-key token if Authorization header is not present", () => {
-      const internalToken = internalAuthTokenProvider.getToken();
-
       return request(app)
         .get("/gimmeTokens")
         .set("X-API-KEY", validKey)

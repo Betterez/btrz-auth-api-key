@@ -1,3 +1,5 @@
+"use strict";
+
 describe("API auth integration tests", () => {
   const request = require("supertest");
   const expect = require("chai").expect;
@@ -20,18 +22,19 @@ describe("API auth integration tests", () => {
   const testFullUser = {_id: SimpleDao.objectId(), name: "Test", last: "User", display: "Testing", password: chance.hash(), deleted: false};
   const userTokenSigningOptions = { algorithm: "HS512", expiresIn: "2 days", issuer: "btrz-api-accounts", subject: "account_user_sign_in", audience: "betterez-app"};
   const internalTokenSigningOptions = {
-    algorithm: "HS512", 
+    algorithm: "HS512",
     expiresIn: "2 minutes",
-    issuer: constants.INTERNAL_AUTH_TOKEN_ISSUER, 
+    issuer: constants.INTERNAL_AUTH_TOKEN_ISSUER,
     audience: "betterez-app"
   };
   const validToken = jwt.sign({user: testFullUser}, privateKey, userTokenSigningOptions);
   const validInternalToken = jwt.sign({}, internalAuthTokenSigningSecrets.main, internalTokenSigningOptions);
   const applicationMock = {accountId: chance.hash(), key: validKey, privateKey: privateKey, userId: testFullUser._id.toString()};
-  
+
   let app = null;
   let options = null;
   let auth = null;
+  let internalAuthTokenProvider = null;
 
   describe("Using API Auth", () => {
     beforeEach(() => {
@@ -55,7 +58,7 @@ describe("API auth integration tests", () => {
           }
         }
       };
-        
+
       auth = new Authenticator(options, mockLogger);
       internalAuthTokenProvider = new InternalAuthTokenProvider(options);
       app = express();
@@ -66,7 +69,7 @@ describe("API auth integration tests", () => {
         res.status(200).json(req.user);
       });
     });
-  
+
     it("should authenticate the user with api key and token", (done) => {
       nock(options.apiUrl)
         .get(`/${validKey}`)
@@ -74,7 +77,7 @@ describe("API auth integration tests", () => {
           application: applicationMock,
           user: testFullUser
         });
-  
+
       request(app)
         .get("/secured")
         .set("X-API-KEY", validKey)
@@ -88,12 +91,12 @@ describe("API auth integration tests", () => {
           done();
         });
     });
-  
+
     it("should return 401 as the key was not found", (done) => {
       nock(options.apiUrl)
         .get("/wrongKey")
         .reply(400);
-  
+
       request(app)
         .get("/secured")
         .set("X-API-KEY", validKey)
@@ -107,7 +110,7 @@ describe("API auth integration tests", () => {
           done();
         });
     });
-  
+
     it("should authenticate with token and set req.user to the token payload", (done) => {
       nock(options.apiUrl)
         .get(`/${validKey}`)
@@ -115,7 +118,7 @@ describe("API auth integration tests", () => {
           application: applicationMock,
           user: testFullUser
         });
-  
+
       request(app)
         .get("/secured")
         .set("X-API-KEY", validKey)
@@ -131,7 +134,7 @@ describe("API auth integration tests", () => {
           done();
         });
     });
-  
+
     it("should authenticate with an api key and internal token", () => {
       nock(options.apiUrl)
         .get(`/${validKey}`)
@@ -139,7 +142,7 @@ describe("API auth integration tests", () => {
           application: applicationMock,
           user: testFullUser
         });
-  
+
       return request(app)
         .get("/secured")
         .set("X-API-KEY", validKey)
@@ -147,7 +150,7 @@ describe("API auth integration tests", () => {
         .set("Accept", "application/json")
         .expect(200);
     });
-  
+
     it(`should authenticate with an internal token, 
         get the user from the API and assign properties of the user to req.user 
         (excluding its hashed password)`, () => {
@@ -157,7 +160,7 @@ describe("API auth integration tests", () => {
           application: applicationMock,
           user: testFullUser
         });
-  
+
       return request(app)
         .get("/secured")
         .set("X-API-KEY", validKey)
@@ -171,33 +174,24 @@ describe("API auth integration tests", () => {
           });
         });
     });
-  })
+  });
 
   describe("Using Mongo Auth", () => {
 
     let options = {
-      "ignoredRoutes": [],
-      "db": {
-          "options": {
-            "database": "",
-            "username": "",
-            "password": ""
-          },
-          "uris": [
-          ]
-        },
+      ignoredRoutes: [],
       internalAuthTokenSigningSecrets,
       collection: {
         name: "applications",
         property: "key"
       },
       db: {
-        "options": {
-          "database": "btrzAuthApiKeyTest",
-          "username": "",
-          "password": ""
+        options: {
+          database: "btrzAuthApiKeyTest",
+          username: "",
+          password: ""
         },
-        "uris": [
+        uris: [
           "127.0.0.1:27017"
         ]
       },
@@ -223,14 +217,14 @@ describe("API auth integration tests", () => {
         .insertMany([applicationMock]);
       await db.collection("users")
         .insertMany([testFullUser]);
-        
+
     });
-  
+
     afterEach( async() => {
       const db = await simpleDao.connect();
       await db.dropCollection("users");
       await db.dropCollection("applications");
-    })
+    });
 
     it("should authenticate the user with api key and token", (done) => {
       app.get("/secured", auth.tokenSecuredForAudiences([audiences.BETTEREZ_APP]), (req, res) => {
@@ -250,7 +244,7 @@ describe("API auth integration tests", () => {
           done();
         });
     });
-  
+
     it("should return 401 as the key was not found", (done) => {
       request(app)
         .get("/secured")
@@ -265,14 +259,14 @@ describe("API auth integration tests", () => {
           done();
         });
     });
-  
+
     it("should authenticate with token and set req.user to the token payload", (done) => {
-  
+
       app.get("/secured", auth.tokenSecuredForAudiences([audiences.BETTEREZ_APP]), (req, res) => {
         expect(req.user.user._id).to.be.eql(testFullUser._id.toString());
         res.status(200).send(req.user);
       });
-      
+
       request(app)
         .get("/secured")
         .set("X-API-KEY", validKey)
@@ -288,14 +282,14 @@ describe("API auth integration tests", () => {
           done();
         });
     });
-  
+
     it("should authenticate with an api key and internal token", () => {
 
       app.get("/secured", auth.tokenSecuredForAudiences([audiences.BETTEREZ_APP]), (req, res) => {
         expect(req.user._id).to.be.eql(testFullUser._id.toString());
         res.status(200).send(req.user);
       });
-  
+
       return request(app)
         .get("/secured")
         .set("X-API-KEY", validKey)
@@ -303,16 +297,16 @@ describe("API auth integration tests", () => {
         .set("Accept", "application/json")
         .expect(200);
     });
-  
+
     it(`should authenticate with an internal token, 
         get the user from the API and assign properties of the user to req.user 
-        (excluding its hashed password)`, () => {   
+        (excluding its hashed password)`, () => {
 
       app.get("/secured", auth.tokenSecuredForAudiences([audiences.BETTEREZ_APP]), (req, res) => {
         expect(req.user._id).to.be.eql(testFullUser._id.toString());
         res.status(200).send(req.user);
       });
-  
+
       return request(app)
         .get("/secured")
         .set("X-API-KEY", validKey)
@@ -326,6 +320,6 @@ describe("API auth integration tests", () => {
           });
         });
     });
-  })
-  
+  });
+
 });

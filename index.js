@@ -95,7 +95,7 @@ function Authenticator(options, logger) {
       },
       body: {},
       json: true
-    };    
+    };
     return axios.get(url, payload)
       .then((info) => {
         preLoadedUser = info.data.user;
@@ -108,11 +108,11 @@ function Authenticator(options, logger) {
   }
 
   function useApiAuth() {
-    return options.apiAuth && options.apiUrl && options.internalAuthTokenProvider; 
+    return options.apiAuth && options.apiUrl && options.internalAuthTokenProvider;
   }
 
   function findByApiKey(apikey) {
-    if (apikey === options.testKey) { 
+    if (apikey === options.testKey) {
       return useTestKey(apikey);
     }
 
@@ -123,7 +123,7 @@ function Authenticator(options, logger) {
     return useDb(apikey);
   }
 
-  function findUserById(userId) {    
+  function findUserById(userId) {
     if (preLoadedUser) {
       return Promise.resolve(preLoadedUser);
     }
@@ -152,20 +152,20 @@ function Authenticator(options, logger) {
   }
 
   function isIgnoredRouteWithoutAuthAttempt(req, strategyOptions) {
-    const isXApiKey = req.headers[strategyOptions.apiKeyHeader] || req.query[strategyOptions.apiKeyField]; 
-    
+    const isXApiKey = req.headers[strategyOptions.apiKeyHeader] || req.query[strategyOptions.apiKeyField];
+
     return shouldIgnoreRoute(req.originalUrl, req.method) && !isXApiKey;
   }
 
   function innerAuthenticateMiddleware(req, res, next) {
     const jwtToken = getAuthToken(req);
     const decodedToken = decodeToken(jwtToken);
-    const isXApiKey = req.headers[strategyOptions.apiKeyHeader] || req.query[strategyOptions.apiKeyField]; 
-    const someAuthAttempt = decodedToken || isXApiKey;    
+    const isXApiKey = req.headers[strategyOptions.apiKeyHeader] || req.query[strategyOptions.apiKeyField];
+    const someAuthAttempt = decodedToken || isXApiKey;
     const isInternalToken = decodedToken && decodedToken.iss === constants.INTERNAL_AUTH_TOKEN_ISSUER;
 
     if(isInternalToken) {
-      req.internalUser = true;          
+      req.internalUser = true;
     }
 
     if (shouldIgnoreRoute(req.originalUrl, req.method) && (!someAuthAttempt || isInternalToken)) {
@@ -244,7 +244,7 @@ function Authenticator(options, logger) {
     if (isIgnoredRouteWithoutAuthAttempt(req, strategyOptions)) {
       return next();
     }
-    
+
     return authenticateTokenMiddleware(req, res, next);
   }
 
