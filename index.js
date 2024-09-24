@@ -5,7 +5,8 @@ const constants = require("./constants");
 const InternalAuthTokenProvider = require("./internalAuthTokenProvider");
 const {SuperUserAuthenticator} = require("./superUserAuthenticator");
 const axios = require("axios");
-const audiences = require("./audiences.js")
+const audiences = require("./audiences.js");
+const authPolicy = require("./authPolicies.js");
 const allAudience = audiences;
 
 function Authenticator(options, logger) {
@@ -487,6 +488,25 @@ function Authenticator(options, logger) {
     return user;
   }
 
+
+  /*
+   * Returns the authorization middleware that corresponds to a particular "policy".  This function provides a level of
+   * indirection for Express routes which need authorization logic.  Using this function, the desired authorization logic
+   * can be expressed using one of the constant "authPolicy" values instead of directly importing middleware.
+   */
+  function getMiddlewareForAuthPolicy(policy) {
+    switch (policy) {
+      case authPolicy.USER_MUST_BE_LOGGED_IN_TO_BACKOFFICE_APP:
+        return this.tokenSecuredForAudiences([audiences.BETTEREZ_APP]);
+      case authPolicy.USER_MUST_BE_LOGGED_IN_TO_BACKOFFICE_APP_OR_MOBILE_SCANNER:
+        return this.tokenSecuredForAudiences([audiences.BETTEREZ_APP, audiences.MOBILE_SCANNER]);
+      case authPolicy.ONLY_ALLOW_REQUESTS_FROM_OTHER_BETTEREZ_SERVICES:
+        return this.tokenSecuredForInternal;
+      default:
+        throw new Error(`Unrecognized authorization policy: ${policy}`);
+    }
+  }
+
   return {
     initialize: function (passportInitOptions) {
       return passport.initialize(passportInitOptions);
@@ -499,13 +519,15 @@ function Authenticator(options, logger) {
     customerTokenSecured,
     optionalTokenSecured,
     validateJwtIfGiven,
-    tokenSecuredForInternal
+    tokenSecuredForInternal,
+    getMiddlewareForAuthPolicy,
   };
-};
+}
 
 module.exports = {
   Authenticator,
   InternalAuthTokenProvider,
   SuperUserAuthenticator,
-  audiences
+  audiences,
+  authPolicy,
 };
