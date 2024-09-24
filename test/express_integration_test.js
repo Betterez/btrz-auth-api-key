@@ -58,7 +58,7 @@ describe("Express integration", function () {
   const validApplicationToken = jwt.sign(application, application.privateKey, userTokenSigningOptions);
 
   const validApplicationTokenWithoutChannels = jwt.sign({}, privateKeyWithoutChannels, userTokenSigningOptions);
-  
+
   const apiKeys = [
     {accountId: chance.hash(), key: validKey, privateKey: privateKey, userId: testFullUser._id.toString()},
     {accountId: chance.hash(), key: validKeyWithNoUser, privateKey: chance.guid(), userId: SimpleDao.objectId().toString()},
@@ -640,9 +640,10 @@ describe("Express integration", function () {
       });
   });
 
-  it.skip("should not authenticate when the token issuer is not specified", () => {
-    const tokenSigningOptions = Object.assign({}, userTokenSigningOptions, {issuer: undefined}),
-      tokenWithNoIssuer = jwt.sign({user: testFullUser}, privateKey, tokenSigningOptions);
+  it("should not authenticate when the token issuer is not specified", () => {
+    const tokenSigningOptions = {...userTokenSigningOptions};
+    delete tokenSigningOptions.issuer;
+    const tokenWithNoIssuer = jwt.sign({user: testFullUser}, privateKey, tokenSigningOptions);
 
     return request(app)
       .get("/secured")
