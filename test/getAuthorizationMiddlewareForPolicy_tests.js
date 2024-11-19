@@ -61,6 +61,20 @@ describe("getMiddlewareForAuthPolicy", () => {
     expect(middleware).to.eql(authenticator.tokenSecuredForAudiences.returnValues[0]);
   });
 
+  it(`should return the correct middleware when the "USER_MUST_BE_LOGGED_IN_TO_BACKOFFICE_APP_OR_PUBLIC_SALES_APP" authorization policy is requested`, () => {
+    sinon.spy(authenticator, "tokenSecuredForAudiences");
+    const middleware = authenticator.getMiddlewareForAuthPolicy(authPolicy.USER_MUST_BE_LOGGED_IN_TO_BACKOFFICE_APP_OR_PUBLIC_SALES_APP);
+    expect(authenticator.tokenSecuredForAudiences).to.have.been.calledOnceWith([audiences.BETTEREZ_APP, audiences.CUSTOMER]);
+    expect(middleware).to.eql(authenticator.tokenSecuredForAudiences.returnValues[0]);
+  });
+
+  it(`should return the correct middleware when the "USER_MUST_BE_LOGGED_IN_TO_BACKOFFICE_APP_OR_MOBILE_SCANNER_OR_PUBLIC_SALES_APP" authorization policy is requested`, () => {
+    sinon.spy(authenticator, "tokenSecuredForAudiences");
+    const middleware = authenticator.getMiddlewareForAuthPolicy(authPolicy.USER_MUST_BE_LOGGED_IN_TO_BACKOFFICE_APP_OR_MOBILE_SCANNER_OR_PUBLIC_SALES_APP);
+    expect(authenticator.tokenSecuredForAudiences).to.have.been.calledOnceWith([audiences.BETTEREZ_APP, audiences.MOBILE_SCANNER, audiences.CUSTOMER]);
+    expect(middleware).to.eql(authenticator.tokenSecuredForAudiences.returnValues[0]);
+  });
+
   it(`should return the correct middleware when the "ONLY_ALLOW_REQUESTS_FROM_OTHER_BETTEREZ_SERVICES" authorization policy is requested`, () => {
     const middleware = authenticator.getMiddlewareForAuthPolicy(authPolicy.ONLY_ALLOW_REQUESTS_FROM_OTHER_BETTEREZ_SERVICES);
     expect(middleware).to.eql(authenticator.tokenSecuredForInternal);
