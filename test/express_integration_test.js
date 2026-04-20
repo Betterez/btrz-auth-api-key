@@ -1,12 +1,13 @@
-"use strict";
+const assert = require("node:assert/strict");
+const { describe, it, beforeEach, afterEach } = require("node:test");
+const context = describe;
 
 describe("Express integration", function () {
 
   let request = require("supertest"),
-    expect = require("chai").expect,
     Chance = require("chance").Chance,
     chance = new Chance(),
-    MockDate = require("mockdate"),
+    sinon = require("sinon"),
     express = require("express"),
     bodyParser = require("body-parser"),
     jwt = require("jsonwebtoken"),
@@ -41,6 +42,7 @@ describe("Express integration", function () {
     validCustomerToken = jwt.sign({ customer: { _id: 1, customerNumber: "111-222-333" }, aud: "customer" }, privateKey, userTokenSigningOptions),
     testToken = "test-token",
     options,
+    clock,
     simpleDao;
 
   const keyWithoutChannels = chance.guid();
@@ -172,470 +174,317 @@ describe("Express integration", function () {
   });
 
   afterEach(async () => {
-    MockDate.reset();
+    if (clock) {
+      clock.restore();
+      clock = null;
+    }
     const db = await simpleDao.connect();
     await db.dropCollection("apikeys");
     await db.dropCollection("users");
   });
 
-  it("should return 200 ok if no X-API-KEY is present but route should not be secured and use internal token", function (done) {
-    request(app)
+  it("should return 200 ok if no X-API-KEY is present but route should not be secured and use internal token", async function () {
+    await request(app)
       .get("/api-docs")
       .set("Accept", "application/json")
       .set("Authorization", `Bearer ${validInternalToken}`)
-      .expect(200)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 200); return response; })
+      ;
   });
 
-  it("should return 401 if no X-API-KEY is present and route should not be secured (strict regexp)", function (done) {
-    request(app)
+  it("should return 401 if no X-API-KEY is present and route should not be secured (strict regexp)", async function () {
+    await request(app)
       .get("/say-no/more")
       .set("Accept", "application/json")
-      .expect(401)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 401); return response; })
+      ;
   });
 
-  it("should return 200 ok if no X-API-KEY is present but route should not be secured and use internal token (ignore method GET)", function (done) {
-    request(app)
+  it("should return 200 ok if no X-API-KEY is present but route should not be secured and use internal token (ignore method GET)", async function () {
+    await request(app)
       .get("/ignored-get-put")
       .set("Accept", "application/json")
       .set("Authorization", `Bearer ${validInternalToken}`)
-      .expect(200)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 200); return response; })
+      ;
   });
 
-  it("should return 200 ok if no X-API-KEY is present but route should not be secured and use internal token (ignore method PUT)", function (done) {
-    request(app)
+  it("should return 200 ok if no X-API-KEY is present but route should not be secured and use internal token (ignore method PUT)", async function () {
+    await request(app)
       .put("/ignored-get-put")
       .set("Accept", "application/json")
       .set("Authorization", `Bearer ${validInternalToken}`)
-      .expect(200)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 200); return response; })
+      ;
   });
 
-  it("should return 200 ok if no X-API-KEY is present but route should not be secured (ignore method PUT)", function (done) {
-    request(app)
+  it("should return 200 ok if no X-API-KEY is present but route should not be secured (ignore method PUT)", async function () {
+    await request(app)
       .put("/ignored-get-put")
       .set("Accept", "application/json")
-      .expect(200)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 200); return response; })
+      ;
   });
 
-  it("should return 401 if no X-API-KEY is present and method POST for route is secured", function (done) {
-    request(app)
+  it("should return 401 if no X-API-KEY is present and method POST for route is secured", async function () {
+    await request(app)
       .post("/ignored-get-put")
       .set("Accept", "application/json")
-      .expect(401)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 401); return response; })
+      ;
   });
 
-  it("should return 200 ok if no X-API-KEY is present but route should not be secured and use internal token", function (done) {
-    request(app)
+  it("should return 200 ok if no X-API-KEY is present but route should not be secured and use internal token", async function () {
+    await request(app)
       .get("/api-docs/pets")
       .set("Accept", "application/json")
       .set("Authorization", `Bearer ${validInternalToken}`)
-      .expect(200)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 200); return response; })
+      ;
   });
 
-  it("should return 401 unauthorized if no X-API-KEY header is present", function (done) {
-    request(app)
+  it("should return 401 unauthorized if no X-API-KEY header is present", async function () {
+    await request(app)
       .get("/hello-world")
       .set("Accept", "application/json")
-      .expect(401)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 401); return response; })
+      ;
   });
 
-  it("should return 401 unauthorized if X-API-KEY is not valid", function (done) {
-    request(app)
+  it("should return 401 unauthorized if X-API-KEY is not valid", async function () {
+    await request(app)
       .get("/hello-world")
       .set("X-API-KEY", chance.hash())
       .set("Accept", "application/json")
-      .expect(401)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 401); return response; })
+      ;
   });
 
-  it("should authenticate the user if HEADER X-API-KEY is valid", function (done) {
-    request(app)
+  it("should authenticate the user if HEADER X-API-KEY is valid", async function () {
+    await request(app)
       .get("/hello-world")
       .set("X-API-KEY", validKey)
       .set("Accept", "application/json")
-      .expect(200)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 200); return response; })
+      ;
   });
 
-  it("should authenticate the user if QS X-API-KEY is valid despite it is an ignored route", function (done) {
-    request(app)
+  it("should authenticate the user if QS X-API-KEY is valid despite it is an ignored route", async function () {
+    await request(app)
       .get(`/ignored-get-put?apiKey=${validKey}`)
       .set("Accept", "application/json")
-      .expect(200)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 200); return response; })
+      ;
   });
 
-  it("should authenticate the user if QS X-API-KEY is valid", function (done) {
-    request(app)
+  it("should authenticate the user if QS X-API-KEY is valid", async function () {
+    await request(app)
       .get(`/hello-world?apiKey=${validKey}`)
       .set("Accept", "application/json")
-      .expect(200)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 200); return response; })
+      ;
   });
 
-  it("should authenticate the user if X-API-KEY is the testKey", function (done) {
-    request(app)
+  it("should authenticate the user if X-API-KEY is the testKey", async function () {
+    await request(app)
       .get("/hello-world")
       .set("X-API-KEY", testKey)
       .set("Accept", "application/json")
-      .expect(200)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 200); return response; })
+      ;
   });
 
-  it("should add the testUser into the request X-API-KEY is the testKey", function (done) {
-    request(app)
+  it("should add the testUser into the request X-API-KEY is the testKey", async function () {
+    await request(app)
       .get("/hello-world")
       .set("X-API-KEY", testKey)
       .set("Accept", "application/json")
-      .expect(200)
-      .expect(testUser)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 200); return response; })
+      .then((response) => { assert.deepStrictEqual(response.body, testUser); return response; })
+      ;
   });
 
-  it("should read the user from a custom key on request", function (done) {
-    request(app)
+  it("should read the user from a custom key on request", async function () {
+    await request(app)
       .get("/hello-world")
       .set("X-API-KEY", testKey)
       .set("Accept", "application/json")
-      .expect(200)
-      .expect(testUser)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 200); return response; })
+      .then((response) => { assert.deepStrictEqual(response.body, testUser); return response; })
+      ;
   });
 
-  it("should require api key header for token secured route", function (done) {
-    request(app)
+  it("should require api key header for token secured route", async function () {
+    await request(app)
       .get("/secured")
       .set("Authorization", `Bearer ${validToken}`)
       .set("Accept", "application/json")
-      .expect(401)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 401); return response; })
+      ;
   });
 
-  it("should require token in token secured route", function (done) {
-    request(app)
+  it("should require token in token secured route", async function () {
+    await request(app)
       .get("/secured")
       .set("X-API-KEY", validKey)
       .set("Accept", "application/json")
-      .expect(401)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 401); return response; })
+      ;
   });
 
-  it("should require api key header on ignoredRoutes for token secured route", function (done) {
-    request(app)
+  it("should require api key header on ignoredRoutes for token secured route", async function () {
+    await request(app)
       .get("/ignoredsecure")
       .set("Authorization", `Bearer ${validToken}`)
       .set("Accept", "application/json")
-      .expect(401)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 401); return response; })
+      ;
   });
 
   describe("#ignored-and-secure", () => {
-    it("should return 200 if xapikey and jwttoken are sent for an optional token secured route", function (done) {
-      request(app)
+    it("should return 200 if xapikey and jwttoken are sent for an optional token secured route", async function () {
+      await request(app)
         .get("/ignored-and-secure")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        ;
     });
 
-    it("should return 401 if xapikey is invalid for an optional token secured route", function (done) {
-      request(app)
+    it("should return 401 if xapikey is invalid for an optional token secured route", async function () {
+      await request(app)
         .get("/ignored-and-secure")
         .set("X-API-KEY", "invalid key")
         .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
-        .expect(401)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 401); return response; })
+        ;
     });
 
-    it("should return 401 if jwttoken is invalid for an optional token secured route", function (done) {
-      request(app)
+    it("should return 401 if jwttoken is invalid for an optional token secured route", async function () {
+      await request(app)
         .get("/ignored-and-secure")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer invalidtoken`)
         .set("Accept", "application/json")
-        .expect(401)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 401); return response; })
+        ;
     });
 
-    it("should return 401 if jwttoken is ommited for an optional token secured route", function (done) {
-      request(app)
+    it("should return 401 if jwttoken is ommited for an optional token secured route", async function () {
+      await request(app)
         .get("/ignored-and-secure")
         .set("X-API-KEY", validKey)
         .set("Accept", "application/json")
-        .expect(401)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 401); return response; })
+        ;
     });
 
-    it("should return 401 if xapikey is ommited for an optional token secured route", function (done) {
-      request(app)
+    it("should return 401 if xapikey is ommited for an optional token secured route", async function () {
+      await request(app)
         .get("/ignored-and-secure")
         .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
-        .expect(401)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 401); return response; })
+        ;
     });
 
-    it("should return 200 if no auth is attempted, the route is ignored and an optional token secured setup is used", function (done) {
-      request(app)
+    it("should return 200 if no auth is attempted, the route is ignored and an optional token secured setup is used", async function () {
+      await request(app)
         .get("/ignored-and-secure")
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        ;
     });
   })
 
   describe("#validate-jwt-if-given", () => {
-    it("should return 200 if a valid jwttoken is sent", function (done) {
-      request(app)
+    it("should return 200 if a valid jwttoken is sent", async function () {
+      await request(app)
         .get("/validate-jwt-if-given")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
+
+          });
     });
 
-    it("should authenticate with token and set req.user to the token payload if a valid jwttoken is sent", function (done) {
-      request(app)
+    it("should authenticate with token and set req.user to the token payload if a valid jwttoken is sent", async function () {
+      await request(app)
         .get("/validate-jwt-if-given")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-          done();
-        });
+          assert.deepStrictEqual(user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+          });
     });
 
-    it("should return 200 if not jwttoken is sent", function (done) {
-      request(app)
+    it("should return 200 if not jwttoken is sent", async function () {
+      await request(app)
         .get("/validate-jwt-if-given")
         .set("X-API-KEY", validKey)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        ;
     });
 
-    it("should return 401 if an invalid jwttoken is sent", function (done) {
-      request(app)
+    it("should return 401 if an invalid jwttoken is sent", async function () {
+      await request(app)
         .get("/validate-jwt-if-given")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer invalid-token`)
-        .expect(401)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 401); return response; })
+        ;
     });
   })
 
-  it("should authenticate the user with api key and token", function (done) {
-    request(app)
+  it("should authenticate the user with api key and token", async function () {
+    await request(app)
       .get("/secured")
       .set("X-API-KEY", validKey)
       .set("Authorization", `Bearer ${validToken}`)
       .set("Accept", "application/json")
-      .expect(200)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 200); return response; })
+      ;
   });
 
-  it("should authenticate the user with api key and token when 'Bearer' isn't specified", function (done) {
-    request(app)
+  it("should authenticate the user with api key and token when 'Bearer' isn't specified", async function () {
+    await request(app)
       .get("/secured")
       .set("X-API-KEY", validKey)
       .set("Authorization", `${validToken}`)
       .set("Accept", "application/json")
-      .expect(200)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 200); return response; })
+      ;
   });
 
-  it("should authenticate the user with api key and a test token", function (done) {
-    request(app)
+  it("should authenticate the user with api key and a test token", async function () {
+    await request(app)
       .get("/secured")
       .set("X-API-KEY", validKey)
       .set("Authorization", `Bearer ${testToken}`)
       .set("Accept", "application/json")
-      .expect(200)
-      .end(function (err) {
-        if (err) {
-          return done(err);
-        }
-        done();
-      });
+      .then((response) => { assert.strictEqual(response.status, 200); return response; })
+      ;
   });
 
-  it("should authenticate with token and set req.user to the token payload", function (done) {
-    request(app)
+  it("should authenticate with token and set req.user to the token payload", async function () {
+    await request(app)
       .get("/secured")
       .set("X-API-KEY", validKey)
       .set("Authorization", `Bearer ${validToken}`)
       .set("Accept", "application/json")
-      .expect(200)
-      .end(function (err, response) {
-        if (err) {
-          return done(err);
-        }
+      .then((response) => { assert.strictEqual(response.status, 200); return response; })
+      .then(function (response) {
         let user = JSON.parse(response.text).user;
-        expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-        done();
-      });
+        assert.deepStrictEqual(user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+        });
   });
 
   it("should not authenticate when the token issuer is not specified", () => {
@@ -648,7 +497,7 @@ describe("Express integration", function () {
       .set("X-API-KEY", validKey)
       .set("Authorization", `Bearer ${tokenWithNoIssuer}`)
       .set("Accept", "application/json")
-      .expect(401);
+      .then((response) => { assert.strictEqual(response.status, 401); return response; });
   });
 
   it("should not authenticate when the token is malformed", () => {
@@ -659,7 +508,7 @@ describe("Express integration", function () {
       .set("X-API-KEY", validKey)
       .set("Authorization", `Bearer ${malformedToken}`)
       .set("Accept", "application/json")
-      .expect(401);
+      .then((response) => { assert.strictEqual(response.status, 401); return response; });
   });
 
   context("internal auth tokens", () => {
@@ -669,7 +518,7 @@ describe("Express integration", function () {
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validInternalToken}`)
         .set("Accept", "application/json")
-        .expect(200);
+        .then((response) => { assert.strictEqual(response.status, 200); return response; });
     });
 
     it("should authenticate with an api key and internal token signed with the secondary signing secret", () => {
@@ -680,7 +529,7 @@ describe("Express integration", function () {
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${anotherValidInternalToken}`)
         .set("Accept", "application/json")
-        .expect(200);
+        .then((response) => { assert.strictEqual(response.status, 200); return response; });
     });
 
     it("should authenticate with an internal token, fetch the user from the database, " +
@@ -690,11 +539,11 @@ describe("Express integration", function () {
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validInternalToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .expect(({body}) => {
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(({body}) => {
           const expectedUserProperties = Object.keys(testFullUser).filter((prop) => prop !== "password");
           expectedUserProperties.forEach((prop) => {
-            expect(body[prop]).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()})[prop]);
+            assert.deepStrictEqual(body[prop], Object.assign({}, testFullUser, {_id: testFullUser._id.toString()})[prop]);
           });
         });
     });
@@ -705,12 +554,12 @@ describe("Express integration", function () {
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validInternalToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .expect(({body}) => {
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(({body}) => {
           const tokenPayload = jwt.decode(validInternalToken),
             expectedTokenProperties = Object.keys(tokenPayload);
           expectedTokenProperties.forEach((prop) => {
-            expect(body[prop]).to.deep.equal(tokenPayload[prop]);
+            assert.deepStrictEqual(body[prop], tokenPayload[prop]);
           });
         });
     });
@@ -721,7 +570,7 @@ describe("Express integration", function () {
         .set("X-API-KEY", validKeyWithNoUser)
         .set("Authorization", `Bearer ${validInternalToken}`)
         .set("Accept", "application/json")
-        .expect(401);
+        .then((response) => { assert.strictEqual(response.status, 401); return response; });
     });
 
     describe("verify internal token only (issuer)", () => {
@@ -730,7 +579,7 @@ describe("Express integration", function () {
           .get("/route/for/internal/use/only")
           .set("Authorization", `Bearer ${validInternalToken}`)
           .set("Accept", "application/json")
-          .expect(200);
+          .then((response) => { assert.strictEqual(response.status, 200); return response; });
       });
 
       it("should authenticate with an internal token when 'Bearer' isn't specified", () => {
@@ -738,14 +587,14 @@ describe("Express integration", function () {
           .get("/route/for/internal/use/only")
           .set("Authorization", `${validInternalToken}`)
           .set("Accept", "application/json")
-          .expect(200);
+          .then((response) => { assert.strictEqual(response.status, 200); return response; });
       });
 
       it("should return unauthorized if internal token is not given", () => {
         return request(app)
           .get("/route/for/internal/use/only")
           .set("Accept", "application/json")
-          .expect(401);
+          .then((response) => { assert.strictEqual(response.status, 401); return response; });
       });
 
       it("should return unauthorized if internal token is not valid", () => {
@@ -753,7 +602,7 @@ describe("Express integration", function () {
           .get("/route/for/internal/use/only")
           .set("Authorization", "Bearer not_valid_token")
           .set("Accept", "application/json")
-          .expect(401);
+          .then((response) => { assert.strictEqual(response.status, 401); return response; });
       });
     });
 
@@ -763,7 +612,7 @@ describe("Express integration", function () {
         .set("X-API-KEY", validKeyWithDeletedUser)
         .set("Authorization", `Bearer ${validInternalToken}`)
         .set("Accept", "application/json")
-        .expect(401);
+        .then((response) => { assert.strictEqual(response.status, 401); return response; });
     });
 
     describe("with a fallback user to impersonate", () => {
@@ -787,9 +636,9 @@ describe("Express integration", function () {
           .set("X-API-KEY", validKeyWithDeletedUser)
           .set("Authorization", `Bearer ${validInternalToken}`)
           .set("Accept", "application/json")
-          .expect(200)
+          .then((response) => { assert.strictEqual(response.status, 200); return response; })
           .then(({body}) => {
-            expect(body.email).to.equal(fallbackAdministrator.email);
+            assert.strictEqual(body.email, fallbackAdministrator.email);
           });
       });
     });
@@ -797,406 +646,302 @@ describe("Express integration", function () {
 
   describe("tokenSecuredForBackoffice middleware", function () {
 
-    it("should not check the token if querystring does not reference channel but fill user if a validToken is provided", function (done) {
-      request(app)
+    it("should not check the token if querystring does not reference channel but fill user if a validToken is provided", async function () {
+      await request(app)
         .get("/backoffice")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           const body = JSON.parse(response.text);
-          expect(body.user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-          done();
-        });
+          assert.deepStrictEqual(body.user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+          });
     });
 
-    it("should not check the token if querystring does not reference channel and no valid token is provided", function (done) {
-      request(app)
+    it("should not check the token if querystring does not reference channel and no valid token is provided", async function () {
+      await request(app)
         .get("/backoffice")
         .set("X-API-KEY", validKey)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let message = JSON.parse(response.text).message;
-          expect(message).to.equal("no token");
-          done();
-        });
+          assert.strictEqual(message, "no token");
+          });
     });
 
-    it("should not authorize if querystring requests channel=backoffice and token is not for the internal app", function (done) {
-      request(app)
+    it("should not authorize if querystring requests channel=backoffice and token is not for the internal app", async function () {
+      await request(app)
         .get("/backoffice?channel=backoffice")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validCustomerToken}`)
         .set("Accept", "application/json")
-        .expect(401)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 401); return response; })
+        ;
     });
 
-    it("should not authorize if querystring requests channel=agency-backoffice and token is not for the internal app", function (done) {
-      request(app)
+    it("should not authorize if querystring requests channel=agency-backoffice and token is not for the internal app", async function () {
+      await request(app)
         .get("/backoffice?channel=agency-backoffice")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validCustomerToken}`)
         .set("Accept", "application/json")
-        .expect(401)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 401); return response; })
+        ;
     });
 
-    it("should not authorize if querystring requests channels contain backoffice and token is not for the internal app", function (done) {
-      request(app)
+    it("should not authorize if querystring requests channels contain backoffice and token is not for the internal app", async function () {
+      await request(app)
         .get("/backoffice?channels=websales,backoffice")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validCustomerToken}`)
         .set("Accept", "application/json")
-        .expect(401)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 401); return response; })
+        ;
     });
 
-    it("should not authorize if querystring requests channels contain agency-backoffice and token is not for the internal app", function (done) {
-      request(app)
+    it("should not authorize if querystring requests channels contain agency-backoffice and token is not for the internal app", async function () {
+      await request(app)
         .get("/backoffice?channels=websales,agency-backoffice")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validCustomerToken}`)
         .set("Accept", "application/json")
-        .expect(401)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 401); return response; })
+        ;
     });
 
-    it("should not check the token if querystring references another channel", function (done) {
-      request(app)
+    it("should not check the token if querystring references another channel", async function () {
+      await request(app)
         .get("/backoffice?channel=websales")
         .set("X-API-KEY", validKey)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let message = JSON.parse(response.text).message;
-          expect(message).to.equal("no token");
-          done();
-        });
+          assert.strictEqual(message, "no token");
+          });
     });
 
-    it("should authorize if querystring requests channel=backoffice and token is for the internal app", function (done) {
-      request(app)
+    it("should authorize if querystring requests channel=backoffice and token is for the internal app", async function () {
+      await request(app)
         .get("/backoffice?channel=backoffice")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validBackofficeToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-          done();
-        });
+          assert.deepStrictEqual(user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+          });
     });
 
-    it("should authorize if querystring requests channel=agency-backoffice and token is for the internal app", function (done) {
-      request(app)
+    it("should authorize if querystring requests channel=agency-backoffice and token is for the internal app", async function () {
+      await request(app)
         .get("/backoffice?channel=agency-backoffice")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validBackofficeToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-          done();
-        });
+          assert.deepStrictEqual(user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+          });
     });
 
-    it("should authorize if querystring requests channels cointain agency-backoffice and token is for the internal app", function (done) {
-      request(app)
+    it("should authorize if querystring requests channels cointain agency-backoffice and token is for the internal app", async function () {
+      await request(app)
         .get("/backoffice?channels=any,agency-backoffice")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validBackofficeToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-          done();
-        });
+          assert.deepStrictEqual(user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+          });
     });
 
-    it("should authorize if querystring requests channels cointain backoffice and token is for the internal app", function (done) {
-      request(app)
+    it("should authorize if querystring requests channels cointain backoffice and token is for the internal app", async function () {
+      await request(app)
         .get("/backoffice?channels=any,backoffice")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validBackofficeToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-          done();
-        });
+          assert.deepStrictEqual(user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+          });
     });
 
-    it("should not check the token if body does not reference channel", function (done) {
-      request(app)
+    it("should not check the token if body does not reference channel", async function () {
+      await request(app)
         .post("/backoffice")
         .send({})
         .set("X-API-KEY", validKey)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let message = JSON.parse(response.text).message;
-          expect(message).to.equal("no token");
-          done();
-        });
+          assert.strictEqual(message, "no token");
+          });
     });
 
-    it("should not authorize if body requests channel=backoffice and token is not for the internal app", function (done) {
-      request(app)
+    it("should not authorize if body requests channel=backoffice and token is not for the internal app", async function () {
+      await request(app)
         .post("/backoffice")
         .send({channel: "backoffice"})
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validCustomerToken}`)
         .set("Accept", "application/json")
-        .expect(401)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 401); return response; })
+        ;
     });
 
-    it("should not authorize if body requests channel=agency-backoffice and token is not for the internal app", function (done) {
-      request(app)
+    it("should not authorize if body requests channel=agency-backoffice and token is not for the internal app", async function () {
+      await request(app)
         .post("/backoffice")
         .send({channel: "agency-Backoffice"})
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validCustomerToken}`)
         .set("Accept", "application/json")
-        .expect(401)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 401); return response; })
+        ;
     });
 
-    it("should not authorize if body requests channels contain backoffice and token is not for the internal app", function (done) {
-      request(app)
+    it("should not authorize if body requests channels contain backoffice and token is not for the internal app", async function () {
+      await request(app)
         .post("/backoffice")
         .send({channels: ["any", "backOffice"]})
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validCustomerToken}`)
         .set("Accept", "application/json")
-        .expect(401)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 401); return response; })
+        ;
     });
 
-    it("should not check the token if body references another channel", function (done) {
-      request(app)
+    it("should not check the token if body references another channel", async function () {
+      await request(app)
         .post("/backoffice")
         .send({channel: "websales"})
         .set("X-API-KEY", validKey)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let message = JSON.parse(response.text).message;
-          expect(message).to.equal("no token");
-          done();
-        });
+          assert.strictEqual(message, "no token");
+          });
     });
 
-    it("should authorize if body requests channel=backoffice and token is for the internal app", function (done) {
-      request(app)
+    it("should authorize if body requests channel=backoffice and token is for the internal app", async function () {
+      await request(app)
         .post("/backoffice")
         .send({channel: "backoffice"})
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validBackofficeToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-          done();
-        });
+          assert.deepStrictEqual(user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+          });
     });
 
-    it("should authorize if body requests channel=agency-backoffice and token is for the internal app", function (done) {
-      request(app)
+    it("should authorize if body requests channel=agency-backoffice and token is for the internal app", async function () {
+      await request(app)
         .post("/backoffice")
         .send({channel: "agency-backoffice"})
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validBackofficeToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-          done();
-        });
+          assert.deepStrictEqual(user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+          });
     });
 
-    it("should authorize if body requests channel=agency-backoffice and token is from application that support the channel", function (done) {
-      request(app)
+    it("should authorize if body requests channel=agency-backoffice and token is from application that support the channel", async function () {
+      await request(app)
         .post("/backoffice")
         .send({channel: "agency-backoffice"})
         .set("X-API-KEY", application.key)
         .set("Authorization", `Bearer ${validApplicationToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let app = JSON.parse(response.text);
-          expect(app._id).to.equal(application._id.toString());
-          done();
-        });
+          assert.strictEqual(app._id, application._id.toString());
+          });
     });
 
-    it("should authorize if body requests channel=backoffice and token is from application that support the channel", function (done) {
-      request(app)
+    it("should authorize if body requests channel=backoffice and token is from application that support the channel", async function () {
+      await request(app)
         .post("/backoffice")
         .send({channel: "backoffice"})
         .set("X-API-KEY", application.key)
         .set("Authorization", `Bearer ${validApplicationToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let app = JSON.parse(response.text);
-          expect(app._id).to.equal(application._id.toString());
-          done();
-        });
+          assert.strictEqual(app._id, application._id.toString());
+          });
     });
 
-    it("should not authorize if body requests channels backoffice and the app does not support the channel", function (done) {
-      request(app)
+    it("should not authorize if body requests channels backoffice and the app does not support the channel", async function () {
+      await request(app)
         .post("/backoffice")
         .send({channels: ["backoffice"]})
         .set("X-API-KEY", keyWithoutChannels)
         .set("Authorization", `Bearer ${validApplicationTokenWithoutChannels}`)
         .set("Accept", "application/json")
-        .expect(401)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 401); return response; })
+        ;
     });
 
 
-    it("should authorize if body requests channels contain backoffice and token is for the internal app", function (done) {
-      request(app)
+    it("should authorize if body requests channels contain backoffice and token is for the internal app", async function () {
+      await request(app)
         .post("/backoffice")
         .send({channels: ["any", "backoffice"]})
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validBackofficeToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-          done();
-        });
+          assert.deepStrictEqual(user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+          });
     });
 
-    it("should authorize when 'Bearer' isn't specified in token", function (done) {
-      request(app)
+    it("should authorize when 'Bearer' isn't specified in token", async function () {
+      await request(app)
         .post("/backoffice")
         .send({channel: "backoffice"})
         .set("X-API-KEY", validKey)
         .set("Authorization", `${validBackofficeToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-          done();
-        });
+          assert.deepStrictEqual(user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+          });
     });
 
-    it("should authorize the configured test token", function (done) {
-      request(app)
+    it("should authorize the configured test token", async function () {
+      await request(app)
         .post("/backoffice")
         .send({channel: "websales"})
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${testToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let message = JSON.parse(response.text).message;
-          expect(message).to.equal("no token");
-          done();
-        });
+          assert.strictEqual(message, "no token");
+          });
     });
 
     describe("testing options audiences array", function () {
@@ -1204,205 +949,156 @@ describe("Express integration", function () {
         options.audiences = ["betterez-app", "btrz-mobile-scanner"];
       });
 
-      it("should not authorize if querystring requests channel=backoffice and token is not for the internal app", function (done) {
-        request(app)
+      it("should not authorize if querystring requests channel=backoffice and token is not for the internal app", async function () {
+        await request(app)
           .get("/backoffice?channel=backoffice")
           .set("X-API-KEY", validKey)
           .set("Authorization", `Bearer ${validCustomerToken}`)
           .set("Accept", "application/json")
-          .expect(401)
-          .end(function (err) {
-            if (err) {
-              return done(err);
-            }
-            done();
-          });
+          .then((response) => { assert.strictEqual(response.status, 401); return response; })
+          ;
       });
 
-      it("should not authorize if querystring requests channel=backoffice and token is for other-app", function (done) {
-        request(app)
+      it("should not authorize if querystring requests channel=backoffice and token is for other-app", async function () {
+        await request(app)
           .get("/backoffice?channel=backoffice")
           .set("X-API-KEY", validKey)
           .set("Authorization", `Bearer ${validBackofficeTokenForOtherApp}`)
           .set("Accept", "application/json")
-          .expect(401)
-          .end(function (err) {
-            if (err) {
-              return done(err);
-            }
-            done();
-          });
+          .then((response) => { assert.strictEqual(response.status, 401); return response; })
+          ;
       });
 
-      it("should authorize if querystring requests channel=backoffice and token is for btrz-mobile-scanner", function (done) {
+      it("should authorize if querystring requests channel=backoffice and token is for btrz-mobile-scanner", async function () {
         let validBackofficeTokenForMobileApp = jwt.sign({user: testFullUser, aud: "btrz-mobile-scanner"},
           privateKey, userTokenSigningOptions);
-        request(app)
+        await request(app)
           .get("/backoffice?channel=backoffice")
           .set("X-API-KEY", validKey)
           .set("Authorization", `Bearer ${validBackofficeTokenForMobileApp}`)
           .set("Accept", "application/json")
-          .expect(200)
-          .end(function (err, response) {
-            if (err) {
-              return done(err);
-            }
+          .then((response) => { assert.strictEqual(response.status, 200); return response; })
+          .then(function (response) {
             let user = JSON.parse(response.text).user;
-            expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-            done();
-          });
+            assert.deepStrictEqual(user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+            });
       });
 
-      it("should authorize if querystring requests channel=backoffice and token is for betterez-app", function (done) {
+      it("should authorize if querystring requests channel=backoffice and token is for betterez-app", async function () {
         let validBackofficeTokenForBetterezApp = jwt.sign({user: testFullUser, aud: "betterez-app"}, privateKey, userTokenSigningOptions);
-        request(app)
+        await request(app)
           .get("/backoffice?channel=backoffice")
           .set("X-API-KEY", validKey)
           .set("Authorization", `Bearer ${validBackofficeTokenForBetterezApp}`)
           .set("Accept", "application/json")
-          .expect(200)
-          .end(function (err, response) {
-            if (err) {
-              return done(err);
-            }
+          .then((response) => { assert.strictEqual(response.status, 200); return response; })
+          .then(function (response) {
             let user = JSON.parse(response.text).user;
-            expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-            done();
-          });
+            assert.deepStrictEqual(user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+            });
       });
     });
   });
 
   describe("customerTokenSecured middleware", function () {
 
-    it("should fail to authenticate customer with user token", function (done) {
-      request(app)
+    it("should fail to authenticate customer with user token", async function () {
+      await request(app)
         .get("/customer")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
-        .expect(401)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 401); return response; })
+        ;
     });
 
-    it("should require API key header for customer token secured route", function (done) {
-      request(app)
+    it("should require API key header for customer token secured route", async function () {
+      await request(app)
         .get("/customer")
         .set("Authorization", `Bearer ${validCustomerToken}`)
         .set("Accept", "application/json")
-        .expect(401)
-        .end(function (err) {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .then((response) => { assert.strictEqual(response.status, 401); return response; })
+        ;
     });
 
-    it("should authenticate customer with token and set customer on request", function (done) {
-      request(app)
+    it("should authenticate customer with token and set customer on request", async function () {
+      await request(app)
         .get("/customer")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validCustomerToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let customer = JSON.parse(response.text).customer;
-          expect(customer.customerNumber).to.equal("111-222-333");
-          done();
-        });
+          assert.strictEqual(customer.customerNumber, "111-222-333");
+          });
     });
 
-    it("should authenticate customer with token when 'Bearer' isn't specified and set customer on request", function (done) {
-      request(app)
+    it("should authenticate customer with token when 'Bearer' isn't specified and set customer on request", async function () {
+      await request(app)
         .get("/customer")
         .set("X-API-KEY", validKey)
         .set("Authorization", `${validCustomerToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
           let customer = JSON.parse(response.text).customer;
-          expect(customer.customerNumber).to.equal("111-222-333");
-          done();
-        });
+          assert.strictEqual(customer.customerNumber, "111-222-333");
+          });
     });
   });
 
   describe("tokenSecuredForAudiences", () => {
-    function sendRequest(token, cb) {
-      request(app)
+    it("should authorize for the internal app", async function () {
+      const response = await request(app)
         .get("/allowOnlyCustomerOrBackoffice")
         .set("X-API-KEY", validKey)
-        .set("Authorization", `Bearer ${token}`)
-        .set("Accept", "application/json")
-        .end(cb);
-    }
-    function sendRequestWithoutBearer(token, cb) {
-      request(app)
+        .set("Authorization", `Bearer ${validBackofficeToken}`)
+        .set("Accept", "application/json");
+      assert.strictEqual(response.status, 200);
+      assert.deepStrictEqual(JSON.parse(response.text).user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+    });
+    it("should authorize for a customer", async function () {
+      const response = await request(app)
         .get("/allowOnlyCustomerOrBackoffice")
         .set("X-API-KEY", validKey)
-        .set("Authorization", `${token}`)
-        .set("Accept", "application/json")
-        .end(cb);
-    }
-    it("should authorize for the internal app", function (done) {
-      sendRequest(validBackofficeToken, function (err, response) {
-        if (err) { return done(err); }
-        expect(JSON.parse(response.text).user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-        done();
-      });
+        .set("Authorization", `Bearer ${validCustomerToken}`)
+        .set("Accept", "application/json");
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(JSON.parse(response.text).customer.customerNumber, "111-222-333");
     });
-    it("should authorize for a customer", function (done) {
-      sendRequest(validCustomerToken, function (err, response) {
-        if (err) { return done(err); }
-        expect(JSON.parse(response.text).customer.customerNumber).to.equal("111-222-333");
-        done();
-      });
-    });
-    it("should not authorize for other app", function (done) {
-      sendRequest(validBackofficeTokenForOtherApp, function (err, response) {
-        if (err) { return done(err); }
-        expect(response.status).to.equal(401);
-        expect(response.text).to.equal("Unauthorized");
-        done();
-      });
+    it("should not authorize for other app", async function () {
+      const response = await request(app)
+        .get("/allowOnlyCustomerOrBackoffice")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `Bearer ${validBackofficeTokenForOtherApp}`)
+        .set("Accept", "application/json");
+      assert.strictEqual(response.status, 401);
+      assert.strictEqual(response.text, "Unauthorized");
     });
 
-    it("should authorize for the internal app", function (done) {
-      sendRequestWithoutBearer(validBackofficeToken, function (err, response) {
-        if (err) { return done(err); }
-        expect(JSON.parse(response.text).user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-        done();
-      });
+    it("should authorize for the internal app", async function () {
+      const response = await request(app)
+        .get("/allowOnlyCustomerOrBackoffice")
+        .set("X-API-KEY", validKey)
+        .set("Authorization", `${validBackofficeToken}`)
+        .set("Accept", "application/json");
+      assert.strictEqual(response.status, 200);
+      assert.deepStrictEqual(JSON.parse(response.text).user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
     });
 
-    it("should authorize for internal app that has channel backoffice as accepted", function (done) {
-      request(app)
+    it("should authorize for internal app that has channel backoffice as accepted", async function () {
+      await request(app)
         .get("/allowOnlyCustomerOrBackoffice")
         .set("X-API-KEY", application.key)
         .set("Authorization", `Bearer ${validApplicationToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end(function (err, response) {
-          if (err) {
-            return done(err);
-          }
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
+        .then(function (response) {
 
           let app = JSON.parse(response.text);
-          expect(app._id).to.equal(application._id.toString());
-          done();
-        });
+          assert.strictEqual(app._id, application._id.toString());
+          });
     })
   });
 
@@ -1415,24 +1111,25 @@ describe("Express integration", function () {
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${internalToken}`)
         .set("Accept", "application/json")
-        .expect(200);
+        .then((response) => { assert.strictEqual(response.status, 200); return response; });
     });
 
     it("should cache the generated token for a period of time", () => {
       const currentTimestamp = new Date().getTime(),
         futureTimestamp = currentTimestamp + 60*12*1000 + 1000, // 12 hours and one second
         internalToken1 = internalAuthTokenProvider.getToken();
-      expect(internalToken1).to.exist;
+      assert.ok(internalToken1);
 
       // Confirm that the first token is cached
       const internalToken2 = internalAuthTokenProvider.getToken();
-      expect(internalToken2).to.equal(internalToken1);
+      assert.strictEqual(internalToken2, internalToken1);
 
       // Confirm that a new token will be generated after some time has elapsed
-      MockDate.set(futureTimestamp);
+      clock = sinon.useFakeTimers({now: currentTimestamp, shouldAdvanceTime: false});
+      clock.setSystemTime(futureTimestamp);
       const internalToken3 = internalAuthTokenProvider.getToken();
-      expect(internalToken3).to.exist;
-      expect(internalToken3).to.not.equal(internalToken2);
+      assert.ok(internalToken3);
+      assert.notStrictEqual(internalToken3, internalToken2);
     });
   });
 
@@ -1445,10 +1142,10 @@ describe("Express integration", function () {
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${internalToken}`)
         .set("Accept", "application/json")
-        .expect(200)
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
         .then(({body}) => {
-          expect(body.token).to.deep.equal(validKey);
-          expect(body.jwtToken).to.deep.equal(internalToken);
+          assert.deepStrictEqual(body.token, validKey);
+          assert.deepStrictEqual(body.jwtToken, internalToken);
         });
     });
 
@@ -1460,10 +1157,10 @@ describe("Express integration", function () {
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${internalToken}`)
         .set("Accept", "application/json")
-        .expect(200)
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
         .then(({body}) => {
-          expect(body.token).to.deep.equal(validKey);
-          expect(body.jwtToken).to.deep.equal(internalToken);
+          assert.deepStrictEqual(body.token, validKey);
+          assert.deepStrictEqual(body.jwtToken, internalToken);
         });
     });
 
@@ -1472,22 +1169,22 @@ describe("Express integration", function () {
         .get("/gimmeTokens")
         .set("X-API-KEY", validKey)
         .set("Accept", "application/json")
-        .expect(200)
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
         .then(({body}) => {
-          expect(body.token).to.deep.equal(validKey);
-          expect(body.jwtToken).to.be.null;
+          assert.deepStrictEqual(body.token, validKey);
+          assert.strictEqual(body.jwtToken, null);
         });
     });
 
     it("should set req.user even if the endpoint is not secured", function () {
-      request(app)
+      return request(app)
         .get("/unsecureWithUser")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
-        .expect(200)
+        .then((response) => { assert.strictEqual(response.status, 200); return response; })
         .then(({body}) => {
-          expect(body.user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
+          assert.deepStrictEqual(body.user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
         });
     });
   });

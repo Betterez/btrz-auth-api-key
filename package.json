@@ -4,8 +4,8 @@
   "description": "Betterez api authorization library",
   "main": "index.js",
   "scripts": {
-    "test": "npx mocha --ui bdd -t 5000 --exit",
-    "tdd": "npx mocha -w",
+    "test": "node --test --test-force-exit --test-concurrency=1 test/*.js",
+    "tdd": "node --test --watch --test-force-exit --test-concurrency=1 test/*.js",
     "preversion": "npm test",
     "postversion": "git push origin master && git push --tags",
     "version": "git tag $1"
@@ -26,22 +26,18 @@
   },
   "homepage": "https://github.com/Betterez/btrz-auth-api-key",
   "dependencies": {
-    "axios": "^0.27.2",
-    "btrz-simple-dao": "^4.3.0",
-    "jsonwebtoken": "8.5.1",
-    "passport": "^0.6.0",
-    "passport-localapikey-update": "^0.6.0"
+    "axios": "1.15.0",
+    "btrz-simple-dao": "4.6.0",
+    "jsonwebtoken": "9.0.3",
+    "passport": "0.7.0",
+    "passport-localapikey-update": "0.6.0"
   },
   "devDependencies": {
     "body-parser": "1.20.0",
-    "chai": "^4.5.0",
-    "chance": "1.1.8",
+    "chance": "1.1.13",
     "express": "4.18.1",
-    "mocha": "^10.7.3",
-    "mockdate": "3.0.5",
-    "nock": "13.2.9",
-    "sinon": "^19.0.2",
-    "sinon-chai": "^3.7.0",
-    "supertest": "^7.0.0"
+    "nock": "14.0.12",
+    "sinon": "21.1.2",
+    "supertest": "7.2.2"
   }
 }

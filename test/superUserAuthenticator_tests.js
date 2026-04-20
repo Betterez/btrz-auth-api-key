@@ -1,5 +1,6 @@
+const {describe, it, beforeEach, afterEach} = require("node:test");
+const assert = require("node:assert/strict");
 describe("SuperUserAuthenticator", () => {
-  const {expect} = require("chai");
   const {Chance} = require("chance");
   const chance = new Chance();
   const {SimpleDao} = require("btrz-simple-dao");
@@ -35,21 +36,21 @@ describe("SuperUserAuthenticator", () => {
   describe("#superUserGenerateSignature(superUserId)", () => {
     it("should generate the superUserHash for the user", async () => {
       const {superUserId, superUserHash} = await authenticator.superUserGenerateSignature(superUser._id.toString());
-      expect(superUserId).to.equal(superUser._id.toString());
-      expect(superUserHash).to.be.a("string");
-      expect(superUserHash.length).to.equal(64);
+      assert.strictEqual(superUserId, superUser._id.toString());
+      assert.strictEqual(typeof superUserHash, "string");
+      assert.strictEqual(superUserHash.length, 64);
     });
 
     it("should not fail but returns nothing if superUser not found", async () => {
       const {superUserId, superUserHash} = await authenticator.superUserGenerateSignature(SimpleDao.objectId().toString());
-      expect(superUserId).to.equal("");
-      expect(superUserHash).to.equal("");
+      assert.strictEqual(superUserId, "");
+      assert.strictEqual(superUserHash, "");
     });
 
     it("should not fail but returns nothing if superUserId is invalid", async () => {
       const {superUserId, superUserHash} = await authenticator.superUserGenerateSignature("invalid");
-      expect(superUserId).to.equal("");
-      expect(superUserHash).to.equal("");
+      assert.strictEqual(superUserId, "");
+      assert.strictEqual(superUserHash, "");
     });
   });
 
@@ -60,7 +61,7 @@ describe("SuperUserAuthenticator", () => {
       const res = {};
       const next = () => {};
       await authenticator.superUserMiddleware(req, res, next);
-      expect(req.superUser._id.toString()).to.equal(superUser._id.toString());
+      assert.strictEqual(req.superUser._id.toString(), superUser._id.toString());
     });
 
     it("should not set the superUser in the request if invalid", async () => {
@@ -69,7 +70,7 @@ describe("SuperUserAuthenticator", () => {
       const res = {};
       const next = () => {};
       await authenticator.superUserMiddleware(req, res, next);
-      expect(req.superUser).to.equal(undefined);
+      assert.strictEqual(req.superUser, undefined);
     });
 
     it("should not set the superUser in the request if no query", async () => {
@@ -77,7 +78,7 @@ describe("SuperUserAuthenticator", () => {
       const res = {};
       const next = () => {};
       await authenticator.superUserMiddleware(req, res, next);
-      expect(req.superUser).to.equal(undefined);
+      assert.strictEqual(req.superUser, undefined);
     });
 
     it("should not set the superUser in the request if no superUserId", async () => {
@@ -86,7 +87,7 @@ describe("SuperUserAuthenticator", () => {
       const res = {};
       const next = () => {};
       await authenticator.superUserMiddleware(req, res, next);
-      expect(req.superUser).to.equal(undefined);
+      assert.strictEqual(req.superUser, undefined);
     });
 
     it("should not set the superUser in the request if no superUserHash", async () => {
@@ -95,7 +96,7 @@ describe("SuperUserAuthenticator", () => {
       const res = {};
       const next = () => {};
       await authenticator.superUserMiddleware(req, res, next);
-      expect(req.superUser).to.equal(undefined);
+      assert.strictEqual(req.superUser, undefined);
     });
 
     it("should not set the superUser in the request if superUserId is not valid", async () => {
@@ -104,7 +105,7 @@ describe("SuperUserAuthenticator", () => {
       const res = {};
       const next = () => {};
       await authenticator.superUserMiddleware(req, res, next);
-      expect(req.superUser).to.equal(undefined);
+      assert.strictEqual(req.superUser, undefined);
     });
 
     it("should not set the superUser in the request if superUserHash is not valid", async () => {
@@ -113,7 +114,7 @@ describe("SuperUserAuthenticator", () => {
       const res = {};
       const next = () => {};
       await authenticator.superUserMiddleware(req, res, next);
-      expect(req.superUser).to.equal(undefined);
+      assert.strictEqual(req.superUser, undefined);
     });
   });
 });

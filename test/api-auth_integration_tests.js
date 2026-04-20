@@ -1,8 +1,8 @@
-"use strict";
+const {describe, it, beforeEach, afterEach} = require("node:test");
+const assert = require("node:assert/strict");
 
 describe("API auth integration tests", () => {
   const request = require("supertest");
-  const expect = require("chai").expect;
   const Chance = require("chance").Chance;
   const chance = new Chance();
   const express = require("express");
@@ -69,7 +69,7 @@ describe("API auth integration tests", () => {
       });
     });
 
-    it("should authenticate the user with api key and token", (done) => {
+    it("should authenticate the user with api key and token", async () => {
       nock(options.apiUrl)
         .get(`/${validKey}`)
         .reply(200, {
@@ -77,40 +77,28 @@ describe("API auth integration tests", () => {
           user: testFullUser
         });
 
-      request(app)
+      await request(app)
         .get("/secured")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end((err) => {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .expect(200);
     });
 
-    it("should return 401 as the key was not found", (done) => {
+    it("should return 401 as the key was not found", async () => {
       nock(options.apiUrl)
         .get("/wrongKey")
         .reply(400);
 
-      request(app)
+      await request(app)
         .get("/secured")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
-        .expect(401)
-        .end((err) => {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .expect(401);
     });
 
-    it("should authenticate with token and set req.user to the token payload", (done) => {
+    it("should authenticate with token and set req.user to the token payload", async () => {
       nock(options.apiUrl)
         .get(`/${validKey}`)
         .reply(200, {
@@ -118,20 +106,16 @@ describe("API auth integration tests", () => {
           user: testFullUser
         });
 
-      request(app)
+      const response = await request(app)
         .get("/secured")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
         .expect(200)
-        .end((err, response) => {
-          if (err) {
-            return done(err);
-          }
-          let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-          done();
-        });
+        ;
+
+      const user = JSON.parse(response.text).user;
+      assert.deepStrictEqual(user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
     });
 
     it("should authenticate with an api key and internal token", () => {
@@ -169,7 +153,7 @@ describe("API auth integration tests", () => {
         .expect(({body}) => {
           const expectedUserProperties = Object.keys(testFullUser).filter((prop) => prop !== "password");
           expectedUserProperties.forEach((prop) => {
-            expect(body[prop]).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()})[prop]);
+            assert.deepStrictEqual(body[prop], Object.assign({}, testFullUser, {_id: testFullUser._id.toString()})[prop]);
           });
         });
     });
@@ -225,67 +209,50 @@ describe("API auth integration tests", () => {
       await db.dropCollection("applications");
     });
 
-    it("should authenticate the user with api key and token", (done) => {
+    it("should authenticate the user with api key and token", async () => {
       app.get("/secured", auth.tokenSecuredForAudiences([audiences.BETTEREZ_APP]), (req, res) => {
         res.status(200).send(req.user);
       });
 
-      request(app)
+      await request(app)
         .get("/secured")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
-        .expect(200)
-        .end((err) => {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .expect(200);
     });
 
-    it("should return 401 as the key was not found", (done) => {
-      request(app)
+    it("should return 401 as the key was not found", async () => {
+      await request(app)
         .get("/secured")
         .set("X-API-KEY", "invalid")
         .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
-        .expect(401)
-        .end((err) => {
-          if (err) {
-            return done(err);
-          }
-          done();
-        });
+        .expect(401);
     });
 
-    it("should authenticate with token and set req.user to the token payload", (done) => {
+    it("should authenticate with token and set req.user to the token payload", async () => {
 
       app.get("/secured", auth.tokenSecuredForAudiences([audiences.BETTEREZ_APP]), (req, res) => {
-        expect(req.user.user._id).to.be.eql(testFullUser._id.toString());
+        assert.deepStrictEqual(req.user.user._id, testFullUser._id.toString());
         res.status(200).send(req.user);
       });
 
-      request(app)
+      const response = await request(app)
         .get("/secured")
         .set("X-API-KEY", validKey)
         .set("Authorization", `Bearer ${validToken}`)
         .set("Accept", "application/json")
         .expect(200)
-        .end((err, response) => {
-          if (err) {
-            return done(err);
-          }
-          let user = JSON.parse(response.text).user;
-          expect(user).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
-          done();
-        });
+        ;
+      const user = JSON.parse(response.text).user;
+      assert.deepStrictEqual(user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
     });
 
     it("should authenticate with an api key and internal token", () => {
 
       app.get("/secured", auth.tokenSecuredForAudiences([audiences.BETTEREZ_APP]), (req, res) => {
-        expect(req.user._id).to.be.eql(testFullUser._id.toString());
+        assert.deepStrictEqual(req.user._id, testFullUser._id.toString());
         res.status(200).send(req.user);
       });
 
@@ -302,7 +269,7 @@ describe("API auth integration tests", () => {
         (excluding its hashed password)`, () => {
 
       app.get("/secured", auth.tokenSecuredForAudiences([audiences.BETTEREZ_APP]), (req, res) => {
-        expect(req.user._id).to.be.eql(testFullUser._id.toString());
+        assert.deepStrictEqual(req.user._id, testFullUser._id.toString());
         res.status(200).send(req.user);
       });
 
@@ -315,7 +282,7 @@ describe("API auth integration tests", () => {
         .expect(({body}) => {
           const expectedUserProperties = Object.keys(testFullUser).filter((prop) => prop !== "password");
           expectedUserProperties.forEach((prop) => {
-            expect(body[prop]).to.deep.equal(Object.assign({}, testFullUser, {_id: testFullUser._id.toString()})[prop]);
+            assert.deepStrictEqual(body[prop], Object.assign({}, testFullUser, {_id: testFullUser._id.toString()})[prop]);
           });
         });
     });
