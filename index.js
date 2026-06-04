@@ -7,6 +7,7 @@ const {SuperUserAuthenticator} = require("./superUserAuthenticator");
 const axios = require("axios");
 const audiences = require("./audiences.js");
 const authPolicy = require("./authPolicies.js");
+const agencyChannelValidation = require("./agencyChannelValidation");
 const allAudience = audiences;
 
 function Authenticator(options, logger) {
@@ -518,6 +519,7 @@ function Authenticator(options, logger) {
     authenticate: function () {
       return innerAuthenticateMiddleware;
     },
+    logAgencyChannelMisuse: agencyChannelValidation.createLogAgencyChannelMisuseMiddleware(logger),
     tokenSecuredForBackoffice,
     tokenSecuredForAudiences,
     customerTokenSecured,
@@ -534,4 +536,5 @@ module.exports = {
   SuperUserAuthenticator,
   audiences,
   authPolicy,
+  agencyChannelValidation,
 };

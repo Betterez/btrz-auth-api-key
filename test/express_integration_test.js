@@ -1188,4 +1188,83 @@ describe("Express integration", function () {
         });
     });
   });
+
+  context("logAgencyChannelMisuse middleware", function () {
+    let agencyLogger;
+    let agencyAuth;
+    let agencyApp;
+    const agencyAccountId = application.accountId;
+    const providerAccountId = "507f1f77bcf86cd799439011";
+
+    beforeEach(function () {
+      agencyLogger = {info() {}, error: sinon.spy()};
+      agencyAuth = new Authenticator(options, agencyLogger);
+      agencyApp = express();
+      agencyApp.use(agencyAuth.initialize({userProperty: "account"}));
+      agencyApp.use(agencyAuth.authenticate());
+      agencyApp.use(bodyParser.json());
+      agencyApp.use(agencyAuth.logAgencyChannelMisuse);
+      agencyApp.get("/agency-channel", function (req, res) {
+        res.status(200).json({ok: true});
+      });
+      agencyApp.post("/agency-channel", function (req, res) {
+        res.status(200).json({ok: true});
+      });
+    });
+
+    it("should log an error when an agency request uses a non-agency channel in querystring", async function () {
+      await request(agencyApp)
+        .get(`/agency-channel?providerId=${providerAccountId}&channel=backoffice`)
+        .set("X-API-KEY", application.key)
+        .expect(200);
+
+      sinon.assert.calledOnce(agencyLogger.error);
+      sinon.assert.calledWithExactly(
+        agencyLogger.error,
+        "AGENCY_WRONG_CHANNEL: Agency request is using a non-agency channel",
+        sinon.match({
+          accountId: agencyAccountId,
+          providerIds: [providerAccountId],
+          invalidChannels: ["backoffice"]
+        })
+      );
+    });
+
+    it("should not log when an agency request uses an agency channel in querystring", async function () {
+      await request(agencyApp)
+        .get(`/agency-channel?providerId=${providerAccountId}&channel=agency-backoffice`)
+        .set("X-API-KEY", application.key)
+        .expect(200);
+
+      sinon.assert.notCalled(agencyLogger.error);
+    });
+
+    it("should log an error when an agency request uses a non-agency channel in body", async function () {
+      await request(agencyApp)
+        .post("/agency-channel")
+        .set("X-API-KEY", application.key)
+        .send({providerId: providerAccountId, channel: "websales"})
+        .expect(200);
+
+      sinon.assert.calledOnce(agencyLogger.error);
+      sinon.assert.calledWithExactly(
+        agencyLogger.error,
+        "AGENCY_WRONG_CHANNEL: Agency request is using a non-agency channel",
+        sinon.match({
+          accountId: agencyAccountId,
+          providerIds: [providerAccountId],
+          invalidChannels: ["websales"]
+        })
+      );
+    });
+
+    it("should not log when a non-agency request uses a regular channel", async function () {
+      await request(agencyApp)
+        .get("/agency-channel?channel=backoffice")
+        .set("X-API-KEY", application.key)
+        .expect(200);
+
+      sinon.assert.notCalled(agencyLogger.error);
+    });
+  });
 });
