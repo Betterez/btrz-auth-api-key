@@ -408,7 +408,8 @@ describe("Express integration", function () {
         .set("Accept", "application/json")
         .then((response) => { assert.strictEqual(response.status, 200); return response; })
         .then(function (response) {
-
+          const user = JSON.parse(response.text).user;
+          assert.deepStrictEqual(user, Object.assign({}, testFullUser, {_id: testFullUser._id.toString()}));
           });
     });
 
