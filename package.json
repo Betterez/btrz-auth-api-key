@@ -8,7 +8,8 @@
     "tdd": "node --test --watch --test-force-exit --test-concurrency=1 test/*.js",
     "preversion": "npm test",
     "postversion": "git push origin master && git push --tags",
-    "version": "git tag $1"
+    "version": "git tag $1",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "repository": {
     "type": "git",
