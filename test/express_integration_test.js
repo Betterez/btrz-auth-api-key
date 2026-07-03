@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { describe, it, beforeEach, afterEach } = require("node:test");
+const { describe, it, beforeEach, afterEach, mock } = require("node:test");
 const context = describe;
 
 describe("Express integration", function () {
@@ -7,7 +7,6 @@ describe("Express integration", function () {
   let request = require("supertest"),
     Chance = require("chance").Chance,
     chance = new Chance(),
-    sinon = require("sinon"),
     express = require("express"),
     bodyParser = require("body-parser"),
     jwt = require("jsonwebtoken"),
@@ -175,7 +174,7 @@ describe("Express integration", function () {
 
   afterEach(async () => {
     if (clock) {
-      clock.restore();
+      clock.reset();
       clock = null;
     }
     const db = await simpleDao.connect();
@@ -1126,8 +1125,9 @@ describe("Express integration", function () {
       assert.strictEqual(internalToken2, internalToken1);
 
       // Confirm that a new token will be generated after some time has elapsed
-      clock = sinon.useFakeTimers({now: currentTimestamp, shouldAdvanceTime: false});
-      clock.setSystemTime(futureTimestamp);
+      clock = mock.timers;
+      clock.enable({apis: ["Date"], now: currentTimestamp});
+      clock.setTime(futureTimestamp);
       const internalToken3 = internalAuthTokenProvider.getToken();
       assert.ok(internalToken3);
       assert.notStrictEqual(internalToken3, internalToken2);
@@ -1198,7 +1198,7 @@ describe("Express integration", function () {
     const providerAccountId = "507f1f77bcf86cd799439011";
 
     beforeEach(function () {
-      agencyLogger = {info() {}, error: sinon.spy()};
+      agencyLogger = {info() {}, error: mock.fn()};
       agencyAuth = new Authenticator(options, agencyLogger);
       agencyApp = express();
       agencyApp.use(agencyAuth.initialize({userProperty: "account"}));
@@ -1219,16 +1219,11 @@ describe("Express integration", function () {
         .set("X-API-KEY", application.key)
         .expect(200);
 
-      sinon.assert.calledOnce(agencyLogger.error);
-      sinon.assert.calledWithExactly(
-        agencyLogger.error,
-        "AGENCY_WRONG_CHANNEL: Agency request is using a non-agency channel",
-        sinon.match({
-          accountId: agencyAccountId,
-          providerIds: [providerAccountId],
-          invalidChannels: ["backoffice"]
-        })
-      );
+      assert.strictEqual(agencyLogger.error.mock.callCount(), 1);
+      assert.strictEqual(agencyLogger.error.mock.calls[0].arguments[0], "AGENCY_WRONG_CHANNEL: Agency request is using a non-agency channel");
+      assert.deepStrictEqual(agencyLogger.error.mock.calls[0].arguments[1].accountId, agencyAccountId);
+      assert.deepStrictEqual(agencyLogger.error.mock.calls[0].arguments[1].providerIds, [providerAccountId]);
+      assert.deepStrictEqual(agencyLogger.error.mock.calls[0].arguments[1].invalidChannels, ["backoffice"]);
     });
 
     it("should not log when an agency request uses an agency channel in querystring", async function () {
@@ -1237,7 +1232,7 @@ describe("Express integration", function () {
         .set("X-API-KEY", application.key)
         .expect(200);
 
-      sinon.assert.notCalled(agencyLogger.error);
+      assert.strictEqual(agencyLogger.error.mock.callCount(), 0);
     });
 
     it("should log an error when an agency request uses a non-agency channel in body", async function () {
@@ -1247,16 +1242,11 @@ describe("Express integration", function () {
         .send({providerId: providerAccountId, channel: "websales"})
         .expect(200);
 
-      sinon.assert.calledOnce(agencyLogger.error);
-      sinon.assert.calledWithExactly(
-        agencyLogger.error,
-        "AGENCY_WRONG_CHANNEL: Agency request is using a non-agency channel",
-        sinon.match({
-          accountId: agencyAccountId,
-          providerIds: [providerAccountId],
-          invalidChannels: ["websales"]
-        })
-      );
+      assert.strictEqual(agencyLogger.error.mock.callCount(), 1);
+      assert.strictEqual(agencyLogger.error.mock.calls[0].arguments[0], "AGENCY_WRONG_CHANNEL: Agency request is using a non-agency channel");
+      assert.deepStrictEqual(agencyLogger.error.mock.calls[0].arguments[1].accountId, agencyAccountId);
+      assert.deepStrictEqual(agencyLogger.error.mock.calls[0].arguments[1].providerIds, [providerAccountId]);
+      assert.deepStrictEqual(agencyLogger.error.mock.calls[0].arguments[1].invalidChannels, ["websales"]);
     });
 
     it("should not log when a non-agency request uses a regular channel", async function () {
@@ -1265,7 +1255,7 @@ describe("Express integration", function () {
         .set("X-API-KEY", application.key)
         .expect(200);
 
-      sinon.assert.notCalled(agencyLogger.error);
+      assert.strictEqual(agencyLogger.error.mock.callCount(), 0);
     });
   });
 });

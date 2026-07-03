@@ -1,8 +1,7 @@
 "use strict";
 
-const {describe, it} = require("node:test");
+const {describe, it, mock} = require("node:test");
 const assert = require("node:assert/strict");
-const sinon = require("sinon");
 const {
   getAgencyContext,
   getRequestChannels,
@@ -166,7 +165,7 @@ describe("agencyChannelValidation", function () {
 
   describe("createLogAgencyChannelMisuseMiddleware", function () {
     it("should log an error and continue the request", function () {
-      const logger = {error: sinon.spy()};
+      const logger = {error: mock.fn()};
       const middleware = createLogAgencyChannelMisuseMiddleware(logger);
       const req = buildReq({
         query: {
@@ -174,27 +173,22 @@ describe("agencyChannelValidation", function () {
           channel: "websales"
         }
       });
-      const next = sinon.spy();
+      const next = mock.fn();
 
       middleware(req, {}, next);
 
-      sinon.assert.calledOnce(logger.error);
-      sinon.assert.calledWithExactly(
-        logger.error,
-        "AGENCY_WRONG_CHANNEL: Agency request is using a non-agency channel",
-        sinon.match({
-          accountId: agencyAccountId,
-          providerIds: [providerAccountId],
-          invalidChannels: ["websales"]
-        })
-      );
-      sinon.assert.calledOnce(next);
+      assert.strictEqual(logger.error.mock.callCount(), 1);
+      assert.strictEqual(logger.error.mock.calls[0].arguments[0], "AGENCY_WRONG_CHANNEL: Agency request is using a non-agency channel");
+      assert.deepStrictEqual(logger.error.mock.calls[0].arguments[1].accountId, agencyAccountId);
+      assert.deepStrictEqual(logger.error.mock.calls[0].arguments[1].providerIds, [providerAccountId]);
+      assert.deepStrictEqual(logger.error.mock.calls[0].arguments[1].invalidChannels, ["websales"]);
+      assert.strictEqual(next.mock.callCount(), 1);
     });
 
     it("should not log when the agency channel is valid", function () {
-      const logger = {error: sinon.spy()};
+      const logger = {error: mock.fn()};
       const middleware = createLogAgencyChannelMisuseMiddleware(logger);
-      const next = sinon.spy();
+      const next = mock.fn();
 
       middleware(buildReq({
         query: {
@@ -203,8 +197,8 @@ describe("agencyChannelValidation", function () {
         }
       }), {}, next);
 
-      sinon.assert.notCalled(logger.error);
-      sinon.assert.calledOnce(next);
+      assert.strictEqual(logger.error.mock.callCount(), 0);
+      assert.strictEqual(next.mock.callCount(), 1);
     });
   });
 });
